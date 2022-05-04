@@ -1,12 +1,14 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 # To compile and install locally run "python setup.py build_ext --inplace"
 # To install library to Python site-packages run "python setup.py build_ext install"
 
 setup(
     name='libzhifan',
-    packages=['libzhifan'],
-    package_dir = {'libzhifan': 'libzhifan'},
+    author="Zhifan Zhu",
+    author_email="zhifan.zhu@bristol.ac.uk",
+    packages=find_packages(exclude=("tests",)),
+    # package_dir = {'libzhifan': 'libzhifan'},
     install_requires=[
         'numpy>=1.16.3',
         'matplotlib>=2.1.0',

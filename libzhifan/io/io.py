@@ -21,3 +21,7 @@ def read_json(fname):
         data = json.load(fp)
     return data
 
+
+def write_json(obj, fname):
+    with open(fname, 'w') as fp:
+        json.dump(obj, fp)
