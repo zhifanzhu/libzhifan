@@ -22,6 +22,12 @@ def read_json(fname):
     return data
 
 
+def read_pickle(fnmae, encoding='ASCII'):
+    with open(fname, 'rb') as fp:
+        data = pickle.load(fp, encoding=encoding)
+    return data
+
+
 def write_json(obj, fname):
     with open(fname, 'w') as fp:
         json.dump(obj, fp)
