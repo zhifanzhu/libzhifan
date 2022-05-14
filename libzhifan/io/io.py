@@ -28,6 +28,15 @@ def read_pickle(fnmae, encoding='ASCII'):
     return data
 
 
+def readfile(fname, *args, **kwargs):
+    if fname.endswith('.txt'):
+        return read_txt(fname)
+    elif fname.endswith('.json'):
+        return read_json(fname)
+    elif fname.endswith('.pkl'):
+        return read_pickle(fname, *args, **kwargs)
+
+
 def write_json(obj, fname):
     with open(fname, 'w') as fp:
         json.dump(obj, fp)
