@@ -22,7 +22,7 @@ def read_json(fname):
     return data
 
 
-def read_pickle(fnmae, encoding='ASCII'):
+def read_pickle(fname, encoding='ASCII'):
     with open(fname, 'rb') as fp:
         data = pickle.load(fp, encoding=encoding)
     return data
