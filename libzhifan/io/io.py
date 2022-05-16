@@ -37,6 +37,25 @@ def readfile(fname, *args, **kwargs):
         return read_pickle(fname, *args, **kwargs)
 
 
+def write_txt(obj, fname):
+    with open(fname, 'w') as fp:
+        fp.writelines()
+
+
 def write_json(obj, fname):
     with open(fname, 'w') as fp:
         json.dump(obj, fp)
+
+
+def write_pickle(obj, fname, protocol=None):
+    with open(fname, 'wb') as fp:
+        pickle.dump(obj, fp, protocol=protocol)
+
+
+def writefile(obj, fname, *args, **kwargs):
+    if fname.endswith('.txt'):
+        return write_txt(obj, fname)
+    elif fname.endswith('.json'):
+        return write_json(obj, fname)
+    elif fname.endswith('.pkl'):
+        return write_pickle(obj, fname, *args, **kwargs)
