@@ -1,2 +1,4 @@
 __pycache__/
 libzhifan.egg-info/
+build/
+dist/
