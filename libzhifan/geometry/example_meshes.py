@@ -3,7 +3,13 @@ import numpy as np
 from .coor_utils import points_opencv_to_opengl
 
 
-def pivot_simplex(xlen=1, ylen=1.5, zlen=2):
+def pivot_simplex(
+        x=0,
+        y=0,
+        z=0,
+        xlen=1,
+        ylen=1.5,
+        zlen=2):
     """
     Generate a simplex in 3D.
 
@@ -16,7 +22,7 @@ def pivot_simplex(xlen=1, ylen=1.5, zlen=2):
         [xlen, 0, 0],
         [0, ylen, 0],
         [0, 0, zlen]
-    ])
+    ]) + [x, y, z]
     faces = np.int32([
         [0, 2, 1],
         [0, 3, 2],
@@ -45,7 +51,6 @@ def canonical_cuboids(
         vertices: (8, 3)
         faces: (12, 3)
     """
-    x, y, z = 0, 0, 0
     # NOTE: following use OpenCV's coordinate convention,
 
     # X axis point to the right
