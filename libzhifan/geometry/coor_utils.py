@@ -1,5 +1,25 @@
 """ Utility function for coordinate system. """
+from typing import Callable
 import numpy as np
+import torch
+
+
+def nptify(x) -> Callable:
+    """ 
+    Example:
+    a = torch.Tensor([1])
+    b = np.array([])
+    To convert b to the type of a:
+    b_out = nptify(a)(b)
+
+    Returns:
+        A Callable that converts its input to x's type
+    """
+    if isinstance(x, torch.Tensor):
+        return lambda a: torch.as_tensor(a, dtype=x.dtype, device=x.device)
+    else:
+        return lambda a: a
+
 
 """ Functions dealing with homogenous coordiate transforms. """
 
@@ -143,17 +163,38 @@ def rotation_epfl(alpha, beta, gamma):
 """ Camera """
 
 
-def project_3d_2d(A, x3d):
+def camera_matrix(fx, fy, cx, cy):
+    """
+
+    Returns:
+        K: (3, 3) ndarray
+    """
+    K = np.array([
+        [fx, 0, cx],
+        [0, fy, cy],
+        [0, 0,  1]
+    ], dtype=type(fx))
+    return K
+
+
+def project_3d_2d(x3d, A=None, fx=None, fy=None, cx=None, cy=None):
     """
 
     Args:
-        A: (3, 3)
         x3d: (3, n)
+        A: (3, 3)
+        fx, fy, cx, cy: scalar
+            either A or (fx, fy, cx , cy) must be supplied.
 
     Returns: (2, n)
-
     """
-    x2d_h = A @ x3d
+    if A is not None:
+        assert A.ndim == 2 and A.shape[-1] == 3
+        x2d_h = A @ x3d
+    else:
+        assert fx and fy and (cx is not None) and (cy is not None)
+        K = camera_matrix(fx, fy, cx, cy)
+        x2d_h = nptify(x3d)(K) @ x3d
     return extract_pixel_homo_xn(x2d_h)
 
 

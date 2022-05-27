@@ -4,23 +4,6 @@ import PIL.ImageDraw as ImageDraw
 import numpy as np
 
 
-"""
-      4 +-----------------+ 5
-       /     TOP         /|
-      /                 / |
-   0 +-----------------+ 1|
-     |      FRONT      |  |
-     |                 |  |
-     |  x <--+         |  |
-     |       |         |  |
-     |       v         |  + 6
-     |        y        | /
-     |                 |/
-   3 +-----------------+ 2
-
-"""
-
-
 def draw_proj_cuboid_image(image,
                            proj_cuboid: np.ndarray,
                            color='green',
@@ -174,14 +157,14 @@ def draw_pivots_image(image,
         return image
 
 
-def draw_big_dots_image(image,
-                        dots: np.ndarray,
-                        color='green',
-                        thickness=4):
+def draw_dots_image(image,
+                    dots: np.ndarray,
+                    color='green',
+                    thickness=4):
     """
 
     Args:
-        image:
+        image: Image or ndarray
         dots: (n, 2)
         color:
         thickness: radius equals 2 * thickness

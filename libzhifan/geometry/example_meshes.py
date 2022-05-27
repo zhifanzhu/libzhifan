@@ -42,7 +42,20 @@ def canonical_cuboids(
         convention='opengl'):
     """
     Generate a Cuboid/Cube.
-    See visualize_2d.py for definition of the corner locations.
+
+         4 +-----------------+ 5
+          /     TOP         /|
+         /                 / |
+      0 +-----------------+ 1|
+        |      FRONT      |  |
+        |                 |  |
+        |  x <--+         |  |
+        |       |         |  |
+        |       v         |  + 6
+        |        y        | /
+        |                 |/
+      3 +-----------------+ 2
+
 
     Args:
         convention: one of {'opencv', 'opengl'}
