@@ -58,7 +58,7 @@ def canonical_cuboids(
 
 
     Args:
-        convention: one of {'opencv', 'opengl'}
+        convention: one of {'opencv', 'opengl'}  TODO(check this)
 
     Returns:
         vertices: (8, 3)

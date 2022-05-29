@@ -17,8 +17,8 @@ def nptify(x) -> Callable:
     """
     if isinstance(x, torch.Tensor):
         return lambda a: torch.as_tensor(a, dtype=x.dtype, device=x.device)
-    else:
-        return lambda a: a
+    elif isinstance(x, np.ndarray):
+        return lambda a: np.asarray(a)
 
 
 """ Functions dealing with homogenous coordiate transforms. """
@@ -158,6 +158,37 @@ def rotation_epfl(alpha, beta, gamma):
 #         [0, -np.sin(x_rot), np.cos(x_rot)],
 #     ])
 #     return rz @ ry @ rx
+
+
+""" Primitive Transforms """
+
+
+def translate(points, x, y, z):
+    """ 
+    Args:
+        points: (n, 3)
+        x, y, z: scalar
+    Returns:
+        (n, 3)
+    """
+    out_type = nptify(points)
+    translation = out_type([[x, y, z]])
+    return points + translation
+
+
+def scale(points, x, y, z):
+    """ 
+    Args:
+        points: (n, 3)
+        x, y, z: scalar
+    Returns:
+        (n, 3)
+    """
+    out_type = nptify(points)
+    scaling = out_type([[x, y, z]])
+    return points * scaling
+
+
 
 
 """ Camera """

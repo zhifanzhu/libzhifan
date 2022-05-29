@@ -47,6 +47,10 @@ def visualize_cube_with_unit_camera():
     # TODO: why their full_projection_matrix differs?
     # cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=90 ,R=R, T=T)  
 
+    
+    # Equivalently 2:
+    # for K, fx=fy=cx=cy= W/2
+
     raster_settings = RasterizationSettings(
         image_size=image_size, blur_radius=0, faces_per_pixel=1)
     lights = PointLights(location=[[0, 0, 0]])

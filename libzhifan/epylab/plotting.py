@@ -21,6 +21,8 @@ def eimshow(img,
         if isinstance(img, torch.Tensor):
             old_shape = img.shape
             img = img.squeeze().detach().cpu().numpy()
+            if img.shape[0] == 3:
+                img = img.transpose(2, 1, 0)
             if img.shape != old_shape:
                 title = f"squeeze shape: {old_shape} \n=> {img.shape}"
             eimshow(img, *args, **kwargs, title=title)
