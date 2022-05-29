@@ -13,6 +13,13 @@ from pytorch3d.structures import Meshes
 from . import coor_utils
 from .visualize_2d import draw_dots_image
 
+try:
+    import neural_renderer as nr
+    HAS_NR = True
+except ImportError:
+    HAS_NR = False
+
+
 
 """
 Dealing with vertices projections, possibly using pytorch3d
@@ -102,10 +109,6 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
                            cam_p,
                            method=dict(
                                name='pytorch3d',
-                               in_mesh=False,
-                               in_ndc=True,
-                               R=_R,
-                               T=_R,
                                ),
                            image=None,
                            img_h=None,
@@ -125,7 +128,7 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
         cam_f: focal length (2,)
         cam_p: principal points (2,)
         method: dict
-            - name: one of {'naive', 'pytorch3d'}.
+            - name: one of {'naive', 'pytorch3d', 'neural_renderer'}.
 
             Other fields contains the parameters of that function
 
@@ -159,6 +162,13 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
             **method, image=image
         )
         return img
+    elif method_name == 'neural_renderer':
+        assert HAS_NR
+        img = neural_renderer_perspective_projection(
+            mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
+            **method, image=image
+        )
+        return img
 
 
 def naive_perspective_projection(mesh_data,
@@ -188,7 +198,7 @@ def naive_perspective_projection(mesh_data,
 def pytorch3d_perspective_projection(mesh_data,
                                      cam_f,
                                      cam_p,
-                                     in_mesh=False,
+                                     input_mesh=False,
                                      in_ndc=True,
                                      R=_R,
                                      T=_T,
@@ -201,7 +211,7 @@ def pytorch3d_perspective_projection(mesh_data,
     device = 'cuda'
     image_size = image.shape[:2]
     
-    if not in_mesh:
+    if not input_mesh:
         verts, faces = mesh_data
         verts, faces = map(torch.as_tensor, (verts, faces))
 
@@ -251,3 +261,46 @@ def pytorch3d_perspective_projection(mesh_data,
     else:
         out = rendered.cpu().numpy().squeeze()[..., :3]
     return out
+
+    
+def neural_renderer_perspective_projection(mesh_data,
+                                           cam_f,
+                                           cam_p,
+                                           R=_R,
+                                           T=_T,
+                                           image=None,
+                                           orig_size=1,
+                                           **kwargs):
+    """ 
+    TODO(low priority): add image support, add texture render support.
+    """
+    device = 'cuda'
+
+    verts, faces = map(lambda x: x.unsqueeze(0), mesh_data)
+    image_size = image.shape
+    fx, fy = cam_f
+    cx, cy = cam_p
+
+    K = torch.as_tensor([
+        [fx, 0, cx],
+        [0, fy, cy],
+        [0, 0, 1]
+        ], dtype=torch.float32, device=device)
+    K = K[None]
+    R = torch.eye(3, device=device)[None]
+    t = torch.zeros([1, 3], device=device)
+
+    renderer = nr.Renderer(
+        image_size=image_size[0],
+        K=K,
+        R=R,
+        t=t,
+        orig_size=orig_size
+    )
+
+    img = renderer(
+        verts,
+        faces,
+        mode='silhouettes'
+    )
+    return img
