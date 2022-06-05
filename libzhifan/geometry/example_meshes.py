@@ -22,7 +22,7 @@ def pivot_simplex(
         [xlen, 0, 0],
         [0, ylen, 0],
         [0, 0, zlen]
-    ]) + [x, y, z]
+    ]) + np.float32([x, y, z])
     faces = np.int32([
         [0, 2, 1],
         [0, 3, 2],

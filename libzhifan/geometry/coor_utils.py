@@ -5,7 +5,9 @@ import torch
 
 
 def nptify(x) -> Callable:
-    """ 
+    """
+    Make a type convertor based on the type of x
+
     Example:
     a = torch.Tensor([1])
     b = np.array([])
@@ -164,30 +166,32 @@ def rotation_epfl(alpha, beta, gamma):
 
 
 def translate(points, x, y, z):
-    """ 
+    """
     Args:
         points: (n, 3)
         x, y, z: scalar
     Returns:
         (n, 3)
     """
+    assert len(points.shape) == 2 and points.shape[1] == 3
     out_type = nptify(points)
     translation = out_type([[x, y, z]])
     return points + translation
 
 
 def scale(points, x, y, z):
-    """ 
+    """
     Args:
         points: (n, 3)
         x, y, z: scalar
     Returns:
         (n, 3)
     """
+    assert len(points.shape) == 2 and points.shape[1] == 3
     out_type = nptify(points)
-    scaling = out_type([[x, y, z]])
-    return points * scaling
-
+    scale_factor = out_type([[x, y, z]])
+    center = points.mean(0)
+    return (points - center) * scale_factor + center
 
 
 
