@@ -11,6 +11,7 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from pytorch3d.structures import join_meshes_as_scene
 from . import coor_utils
+from .numeric import numpify
 from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
 
@@ -35,7 +36,9 @@ Pytorch3D has two Perspective Cameras:
 
 1. Coordinate System.
 
-pytorch3d / pytorch3d-NDC
+Camera always looks at (0, 0, 1).
+
+a. pytorch3d / pytorch3d-NDC
 
             ^ Y
             |
@@ -44,18 +47,33 @@ pytorch3d / pytorch3d-NDC
             | /
     X <------
 
-OpenGL:
+    - this will be projected into:
+
+            ^ Y
+            |
+            |
+        <----
+        X
+
+b. OpenGL, naive_implementation:
 
             ^ Y              Y ^
             |                  |  / Z
             |                  | /
             |                  |/
             /------> X          ------> X
-           /
+           /                     (NDC)
           /
        Z /
 
-OpenCV, Open3D, neural_renderer:
+    - this will be projected into:
+
+            ----> X
+            |
+            |
+            v Y
+
+c. OpenCV, Open3D, neural_renderer:
 
              / Z
             /
@@ -79,7 +97,8 @@ model -> screen
 3. Rendering configuration
 
 To render a cube [-1, 1]^3, on a W x W = (200, 200) image
-Naive method: 
+
+naive method: 
     - fx=fy=cx=cy=W/2, image_size=(W, W)
 
 pytorch3d in_ndc=True:
@@ -93,7 +112,7 @@ neural_renderer.git:
     or,
     - fx=fy=cx=cy=1/2, image_size=W, orig_size=1
 
-{naive} == {pytorch3d in_ndc=False} == {neural_renderer orig_size=image_size}
+`naive` == `pytorch3d in_ndc=False` == `neural_renderer w/ orig_size=image_size`
 
 
 Ref:
@@ -272,10 +291,16 @@ def neural_renderer_perspective_projection(mesh_data,
                                            R=_R,
                                            T=_T,
                                            image=None,
-                                           orig_size=1,
+                                           orig_size=None,
                                            **kwargs):
     """ 
     TODO(low priority): add image support, add texture render support.
+
+    Args:
+        orig_size: int or None.
+            if None, orig_size will be set to image_size.
+            It's recommended to keep it as None.
+            See above "3." for explanation.
     """
     device = 'cuda'
     if isinstance(mesh_data, list):
@@ -312,4 +337,4 @@ def neural_renderer_perspective_projection(mesh_data,
         faces,
         mode='silhouettes'
     )
-    return img
+    return numpify(img)
