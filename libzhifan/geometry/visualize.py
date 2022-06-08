@@ -1,15 +1,18 @@
 import numpy as np
+from typing import Union
 import trimesh
 import torch
+from trimesh.transformations import rotation_matrix
+from pytorch3d.structures import Meshes
+from libzhifan.geometry.numeric import numpify
 
-from libzhifan.geometry.coor_utils import nptify
+_Ry = rotation_matrix(np.pi, [0, 1, 0])  # rotate pi around y-axis
 
 
-def numpify(tensor):
-    if isinstance(tensor, torch.Tensor):
-        return tensor.detach().squeeze().cpu().numpy()
-    elif isinstance(tensor, np.ndarray):
-        return tensor
+def trimesh_from_pytorch3d(mesh_in: Meshes) -> trimesh.Trimesh:
+    return trimesh.Trimesh(
+                vertices=numpify(mesh_in.verts_packed()),
+                faces=numpify(mesh_in.faces_packed()))
 
 
 def visualize_hand_object(hand_verts=None,
@@ -21,7 +24,8 @@ def visualize_hand_object(hand_verts=None,
                           use_pca=True,
                           obj_verts=None,
                           obj_faces=None,
-                          show_axis=True):
+                          show_axis=True,
+                          viewpoint='pytorch3d'):
     """
 
     If `hand_verts` are supplied, the rest of hand_* will be ignored.
@@ -33,6 +37,7 @@ def visualize_hand_object(hand_verts=None,
         hand_poses: (45, 3)
         hand_betas: (10,)
         obj_verts: (V_o, 3)
+        viewpoint: str, one of {'pytorch3d', 'opengl'}
 
     Returns:
         trimesh.Scene
@@ -54,33 +59,43 @@ def visualize_hand_object(hand_verts=None,
                 obj_verts, colors=np.tile(np.array([0, 0, 0, 1]), (len(obj_verts), 1))
             )
         s.add_geometry(obj)
-    
+
     if show_axis:
         axis = trimesh.creation.axis(origin_size=0.01, axis_radius=0.004, axis_length=0.4)
         s.add_geometry(axis)
-    
+
+    if viewpoint == 'pytorch3d':
+        s.apply_transform(_Ry)
+
     return s
 
 
-def visualize_mesh(mesh, show_axis=True):
-    """ 
+def visualize_mesh(mesh_data,
+                   show_axis=True,
+                   viewpoint='pytorch3d'):
+    """
     Args:
-        mesh: pytorch3d Mesh
+        mesh: pytorch3d Mesh or a list of Meshes
+        viewpoint: str, one of {'pytorch3d', 'opengl'}
 
     Return:
         trimesh.Scene
     """
     s = trimesh.Scene()
-    s.add_geometry(
-        trimesh.Trimesh(
-            vertices=numpify(mesh.verts_packed()),
-            faces=numpify(mesh.faces_packed()),
-        )
-    )
+    if isinstance(mesh_data, Meshes):
+        s.add_geometry(
+            trimesh_from_pytorch3d(mesh_data))
+    elif isinstance(mesh_data, list):
+        assert isinstance(mesh_data[0], Meshes)
+        for _m in mesh_data:
+            s.add_geometry(trimesh_from_pytorch3d(_m))
 
     if show_axis:
         axis = trimesh.creation.axis(origin_size=0.01, axis_radius=0.004, axis_length=0.4)
         s.add_geometry(axis)
-    
+
+    if viewpoint == 'pytorch3d':
+        s.apply_transform(_Ry)
+
     return s
-    
+

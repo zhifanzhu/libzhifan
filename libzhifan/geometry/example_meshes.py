@@ -1,6 +1,6 @@
 import numpy as np
 
-from .coor_utils import points_opencv_to_opengl
+from .mesh import SimpleMesh
 
 
 def pivot_simplex(
@@ -9,7 +9,8 @@ def pivot_simplex(
         z=0,
         xlen=1,
         ylen=1.5,
-        zlen=2):
+        zlen=2,
+        return_mesh=True):
     """
     Generate a simplex in 3D.
 
@@ -29,7 +30,10 @@ def pivot_simplex(
         [0, 1, 3],
         [1, 2, 3]
     ])
-    return pts, faces
+    if return_mesh:
+        return SimpleMesh(pts, faces)
+    else:
+        return pts, faces
 
 
 def canonical_cuboids(
@@ -39,7 +43,8 @@ def canonical_cuboids(
         w=1,
         h=1,
         d=1,
-        convention='opengl'):
+        convention='pytorch3d',
+        return_mesh=True):
     """
     Generate a Cuboid/Cube.
 
@@ -49,43 +54,62 @@ def canonical_cuboids(
       0 +-----------------+ 1|
         |      FRONT      |  |
         |                 |  |
-        |  x <--+         |  |
-        |       |         |  |
-        |       v         |  + 6
-        |        y        | /
+        |                 |  |
+        |                 |  |
+        |                 |  + 6
+        |                 | /
         |                 |/
       3 +-----------------+ 2
 
 
     Args:
-        convention: one of {'opencv', 'opengl'}  TODO(check this)
+        convention: one of {'opencv', 'opengl', 'pytorch3d'}
 
     Returns:
         vertices: (8, 3)
         faces: (12, 3)
     """
-    # NOTE: following use OpenCV's coordinate convention,
-
-    # X axis point to the right
-    right = x + w / 2.0
-    _left = x - w / 2.0
-    # Y axis point downward
-    top = y - h / 2.0
-    bottom = y + h / 2.0
-    # Z axis point outward
-    front = z + d / 2.0
-    rear = z - d / 2.0
+    if convention == 'pytorch3d':
+        # X axis point to the left
+        left = x + w / 2.0
+        right = x - w / 2.0
+        # Y axis point upward
+        top = y + h / 2.0
+        bottom = y - h / 2.0
+        # Z axis point inward
+        front = z - d / 2.0
+        rear = z + d / 2.0
+    elif convention == 'opencv':
+        # X axis point to the right
+        left = x - w / 2.0
+        right = x + w / 2.0
+        # Y axis point downward
+        top = y - h / 2.0
+        bottom = y + h / 2.0
+        # Z axis point inward
+        front = z - d / 2.0
+        rear = z + d / 2.0
+    elif convention == 'opengl' or convention == 'open3d':
+        # X axis point to the right
+        left = x - w / 2.0
+        right = x + w / 2.0
+        # Y axis point upnward
+        top = y + h / 2.0
+        bottom = y - h / 2.0
+        # Z axis point inward
+        front = z + d / 2.0
+        rear = z - d / 2.0
 
     # List of 8 vertices of the box
     pts = np.float32([
-        [_left, top, front],     # Front Top Left
+        [left, top, front],      # Front Top Left
         [right, top, front],     # Front Top Right
         [right, bottom, front],  # Front Bottom Right
-        [_left, bottom, front],  # Front Bottom Left
-        [_left, top, rear],      # Rear Top Left
+        [left, bottom, front],  # Front Bottom Left
+        [left, top, rear],      # Rear Top Left
         [right, top, rear],      # Rear Top Right
         [right, bottom, rear],   # Rear Bottom Right
-        [_left, bottom, rear],   # Rear Bottom Left
+        [left, bottom, rear],   # Rear Bottom Left
     ])
     faces = np.int32([
         [1, 3, 2],
@@ -101,13 +125,11 @@ def canonical_cuboids(
         [7, 6, 2],
         [2, 3, 7]
     ])
-    if convention == 'opencv':
-        pass
-    elif convention == 'opengl':
-        pts = points_opencv_to_opengl(pts)
 
-    return pts, faces
-
+    if return_mesh:
+        return SimpleMesh(pts, faces)
+    else:
+        return pts, faces
 
 def canonical_pivots(
     width=1,

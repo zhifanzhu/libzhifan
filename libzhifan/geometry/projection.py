@@ -1,7 +1,7 @@
+from typing import Union, Tuple, List
 import numpy as np
 import torch
 import pytorch3d
-from typing import Tuple, Union
 
 from pytorch3d.renderer import (
     PerspectiveCameras, RasterizationSettings, PointLights,
@@ -9,8 +9,9 @@ from pytorch3d.renderer import (
     TexturesUV,
 )
 from pytorch3d.structures import Meshes
-
+from pytorch3d.structures import join_meshes_as_scene
 from . import coor_utils
+from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
 
 try:
@@ -104,9 +105,9 @@ _R = torch.eye(3)
 _T = torch.zeros(3)
 
 
-def perspective_projection(mesh_data: Union[Tuple, Meshes],
-                           cam_f,
-                           cam_p,
+def perspective_projection(mesh_data,
+                           cam_f: Tuple[float],
+                           cam_p: Tuple[float],
                            method=dict(
                                name='pytorch3d',
                                ),
@@ -116,15 +117,11 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
     """ Project verts/mesh by Perspective camera.
 
     Args:
-        mesh_data: 
-            - For naive_perspective_projection:
-                (Verts, Faces)
-                Tuple of verts (V, 3) and faces (F, 3). faces can be None
-            - For pytorch3d:
-                (Verts, Faces), 
-                or,
-                pytorch3d.Mesh if `method.in_mesh=True`
-
+        mesh_data: one of 
+            - SimpleMesh
+            - pytorch3d.Meshes
+            - list of SimpleMeshes
+            - list of pytorch3d.Meshes
         cam_f: focal length (2,)
         cam_p: principal points (2,)
         method: dict
@@ -140,12 +137,12 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
         image: (H, W, 3), if `image` is None, 
             will render a image with size (img_h, img_w).
 
-    
     Returns:
         (H, W, 3) image
     """
     method_name = method.pop('name')
     if image is None:
+        assert img_h is not None and img_w is not None
         image = np.ones([img_h, img_w, 3], dtype=np.uint8) * 255
 
     if method_name == 'naive':
@@ -155,8 +152,7 @@ def perspective_projection(mesh_data: Union[Tuple, Meshes],
         )
     elif method_name == 'pytorch3d':
         image = torch.as_tensor(
-            image, dtype=torch.float32,
-            device=mesh_data[0].device) / 255.
+            image, dtype=torch.float32) / 255.
         img = pytorch3d_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
             **method, image=image
@@ -184,7 +180,12 @@ def naive_perspective_projection(mesh_data,
     fx = cx = img_w/2, fy = cy = img_h/2
 
     """
-    verts, _faces = mesh_data
+    if isinstance(mesh_data, list):
+        raise NotImplementedError
+    elif isinstance(mesh_data, Meshes):
+        raise NotImplementedError
+
+    verts = mesh_data.vertices
     fx, fy = cam_f
     cx, cy = cam_p
     fx, fy, cx, cy = map(float, (fx, fy, cx, cy))
@@ -198,35 +199,37 @@ def naive_perspective_projection(mesh_data,
 def pytorch3d_perspective_projection(mesh_data,
                                      cam_f,
                                      cam_p,
-                                     input_mesh=False,
                                      in_ndc=True,
                                      R=_R,
                                      T=_T,
                                      image=None,
+                                     flip_canvas_xy=False,
                                      **kwargs):
     """ 
+    TODO
+    flip issue: https://github.com/facebookresearch/pytorch3d/issues/78
+
     Args:
         image: (H, W, 3) torch.Tensor with values in [0, 1]
+        flip_canvas_xy: see flip issue
     """
+    def _to_th_mesh(m):
+        if isinstance(m, Meshes):
+            return m
+        elif isinstance(m, SimpleMesh):
+            return m.synced_mesh
+        else:
+            raise ValueError
+
     device = 'cuda'
     image_size = image.shape[:2]
-    
-    if not input_mesh:
-        verts, faces = mesh_data
-        verts, faces = map(torch.as_tensor, (verts, faces))
-
-        V, F = verts.shape[0], faces.shape[0]
-        obj_map = torch.ones([1, 1, 3], device=device) * torch.as_tensor([0.65, 0.74, 0.86], device=device)
-        obj_faceuv = torch.zeros([F, 3], device=device).long()
-        obj_vertuv = torch.zeros([1, 2], device=device)
-        obj_mesh = Meshes(
-            verts=[verts], faces=[faces],
-            textures=pytorch3d.renderer.TexturesUV(
-                maps=[obj_map], faces_uvs=[obj_faceuv], verts_uvs=[obj_vertuv])
-        ).to(device)
+    if isinstance(mesh_data, list):
+        _mesh_data = join_meshes_as_scene(
+            meshes=[_to_th_mesh(m) for m in mesh_data])
     else:
-        obj_mesh = mesh_data.to(device)
-
+        _mesh_data = _to_th_mesh(mesh_data)
+    _mesh_data.to(device)
+    
     R = torch.unsqueeze(torch.as_tensor(R), 0)
     T = torch.unsqueeze(torch.as_tensor(T), 0)
     cameras = pytorch3d.renderer.PerspectiveCameras(
@@ -246,12 +249,12 @@ def pytorch3d_perspective_projection(mesh_data,
     renderer = MeshRenderer(
         rasterizer=rasterizer, shader=shader).to(device)
 
-    rendered = renderer(obj_mesh)
+    rendered = renderer(_mesh_data)
 
     # Add background image
     if image is not None:
         image = image.to(device)
-        frags = renderer.rasterizer(obj_mesh)
+        frags = renderer.rasterizer(_mesh_data)
         is_bg = frags.pix_to_face[..., 0] < 0
         dst = rendered[..., :3]
         mask = is_bg[..., None].repeat(1, 1, 1, 3)
@@ -275,8 +278,14 @@ def neural_renderer_perspective_projection(mesh_data,
     TODO(low priority): add image support, add texture render support.
     """
     device = 'cuda'
+    if isinstance(mesh_data, list):
+        raise NotImplementedError
+    elif isinstance(mesh_data, Meshes):
+        raise NotImplementedError
 
-    verts, faces = map(lambda x: x.unsqueeze(0), mesh_data)
+    verts = torch.as_tensor(
+        mesh_data.vertices, device=device, dtype=torch.float32).unsqueeze(0)
+    faces = torch.as_tensor(mesh_data.faces, device=device).unsqueeze(0)
     image_size = image.shape
     fx, fy = cam_f
     cx, cy = cam_p
