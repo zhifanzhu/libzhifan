@@ -49,6 +49,7 @@ def visualize_mesh(mesh_data,
         s.add_geometry(axis)
 
     if viewpoint == 'pytorch3d':
+        s = s.copy()  # We don't want the in-place transform affecting input data
         s.apply_transform(_Ry)
 
     return s
