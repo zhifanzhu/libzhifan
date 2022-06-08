@@ -2,29 +2,9 @@ import unittest
 
 import numpy as np
 from libzhifan.geometry import example_meshes
-from libzhifan.geometry import projection
+from libzhifan.geometry import perspective_projection_by_camera
 from libzhifan.geometry import CameraManager
 
-
-def project_by_camera(mesh_data, camera):
-    fx = camera.fx
-    fy = camera.fy
-    cx = camera.cx
-    cy = camera.cy
-    img_h = camera.img_h
-    img_w = camera.img_w
-    img = projection.perspective_projection(
-        mesh_data,
-        cam_f=(fx, fy),
-        cam_p=(cx, cy),
-        method=dict(
-            name='pytorch3d',
-            in_ndc=False,
-        ),
-        img_h=img_h,
-        img_w=img_w,
-    )
-    return img
 
 class CameraManagerTest(unittest.TestCase):
     
@@ -72,13 +52,13 @@ class CameraManagerTest(unittest.TestCase):
 
         """
 
-        img_global = project_by_camera(
+        img_global = perspective_projection_by_camera(
             [cube_1, cube_2],
             global_cam)
-        img_1 = project_by_camera(
+        img_1 = perspective_projection_by_camera(
             [cube_1, cube_2],
             global_cam.crop(local_box_1))
-        img_2 = project_by_camera(
+        img_2 = perspective_projection_by_camera(
             [cube_1, cube_2],
             global_cam.crop(local_box_2))
 

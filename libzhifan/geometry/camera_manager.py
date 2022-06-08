@@ -51,8 +51,8 @@ class CameraManager:
         self.fy = fy
         self.cx = cx
         self.cy = cy
-        self.img_h = img_h
-        self.img_w = img_w
+        self.img_h = int(img_h)
+        self.img_w = int(img_w)
 
     def __repr__(self):
         return f"CameraManager\n K (non-NDC) = \n {self.get_K()}"
@@ -125,10 +125,10 @@ class CameraManager:
             CameraManager
         """
 
-        if len(output_size) == 2:
-            new_h, new_w = output_size
-        elif isinstance(output_size, int):
+        if isinstance(output_size, int):
             new_h = new_w = output_size
+        elif len(output_size) == 2:
+            new_h, new_w = output_size
         else:
             raise ValueError("output_size not understood.")
 

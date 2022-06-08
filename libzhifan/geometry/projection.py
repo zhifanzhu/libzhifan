@@ -14,6 +14,7 @@ from . import coor_utils
 from .numeric import numpify
 from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
+from .camera_manager import CameraManager
 
 try:
     import neural_renderer as nr
@@ -185,6 +186,31 @@ def perspective_projection(mesh_data,
         )
         return img
 
+def perspective_projection_by_camera(mesh_data, 
+                                     camera: CameraManager,
+                                     method=dict(
+                                         name='pytorch3d',
+                                         in_ndc=False,
+                                     )):
+    """ 
+    Similar to perspective_projection() but with CameraManager as argument.
+    """
+    fx = camera.fx
+    fy = camera.fy
+    cx = camera.cx
+    cy = camera.cy
+    img_h = camera.img_h
+    img_w = camera.img_w
+    img = perspective_projection(
+        mesh_data,
+        cam_f=(fx, fy),
+        cam_p=(cx, cy),
+        method=method.copy(),  # Avoid being optimized by python
+        img_h=int(img_h),
+        img_w=int(img_w),
+    )
+    return img
+
 
 def naive_perspective_projection(mesh_data,
                                  cam_f,
@@ -324,6 +350,8 @@ def neural_renderer_perspective_projection(mesh_data,
     R = torch.eye(3, device=device)[None]
     t = torch.zeros([1, 3], device=device)
 
+    if orig_size is None:
+        orig_size = image_size[0]
     renderer = nr.Renderer(
         image_size=image_size[0],
         K=K,
