@@ -4,15 +4,54 @@ import trimesh
 import torch
 from trimesh.transformations import rotation_matrix
 from pytorch3d.structures import Meshes
-from libzhifan.geometry.numeric import numpify
+from .numeric import numpify
+
 
 _Ry = rotation_matrix(np.pi, [0, 1, 0])  # rotate pi around y-axis
 
 
-def trimesh_from_pytorch3d(mesh_in: Meshes) -> trimesh.Trimesh:
-    return trimesh.Trimesh(
-                vertices=numpify(mesh_in.verts_packed()),
-                faces=numpify(mesh_in.faces_packed()))
+def _to_trimesh(mesh_in) -> trimesh.Trimesh:
+    if isinstance(mesh_in, trimesh.Trimesh):
+        return mesh_in
+    elif isinstance(mesh_in, Meshes):
+        return trimesh.Trimesh(
+                    vertices=numpify(mesh_in.verts_packed()),
+                    faces=numpify(mesh_in.faces_packed()))
+    else:
+        raise ValueError("Mesh type not understood.")
+
+
+def visualize_mesh(mesh_data,
+                   show_axis=True,
+                   viewpoint='pytorch3d'):
+    """
+    Args:
+        mesh: one of 
+            - SimpleMesh
+            - pytorch3d.Meshes
+            - list of SimpleMeshes
+            - list of pytorch3d.Meshes
+        viewpoint: str, one of {'pytorch3d', 'opengl'}
+
+    Return:
+        trimesh.Scene
+    """
+    s = trimesh.Scene()
+
+    if isinstance(mesh_data, list):
+        for m in mesh_data:
+            s.add_geometry(_to_trimesh(m))
+    else:
+        s.add_geometry(_to_trimesh(mesh_data))
+
+    if show_axis:
+        axis = trimesh.creation.axis(origin_size=0.01, axis_radius=0.004, axis_length=0.4)
+        s.add_geometry(axis)
+
+    if viewpoint == 'pytorch3d':
+        s.apply_transform(_Ry)
+
+    return s
 
 
 def visualize_hand_object(hand_verts=None,
@@ -42,6 +81,7 @@ def visualize_hand_object(hand_verts=None,
     Returns:
         trimesh.Scene
     """
+    print("DEPRECATED: use visualize_mesh() instead.")
     s = trimesh.Scene()
 
     if hand_verts is not None:
@@ -68,34 +108,3 @@ def visualize_hand_object(hand_verts=None,
         s.apply_transform(_Ry)
 
     return s
-
-
-def visualize_mesh(mesh_data,
-                   show_axis=True,
-                   viewpoint='pytorch3d'):
-    """
-    Args:
-        mesh: pytorch3d Mesh or a list of Meshes
-        viewpoint: str, one of {'pytorch3d', 'opengl'}
-
-    Return:
-        trimesh.Scene
-    """
-    s = trimesh.Scene()
-    if isinstance(mesh_data, Meshes):
-        s.add_geometry(
-            trimesh_from_pytorch3d(mesh_data))
-    elif isinstance(mesh_data, list):
-        assert isinstance(mesh_data[0], Meshes)
-        for _m in mesh_data:
-            s.add_geometry(trimesh_from_pytorch3d(_m))
-
-    if show_axis:
-        axis = trimesh.creation.axis(origin_size=0.01, axis_radius=0.004, axis_length=0.4)
-        s.add_geometry(axis)
-
-    if viewpoint == 'pytorch3d':
-        s.apply_transform(_Ry)
-
-    return s
-
