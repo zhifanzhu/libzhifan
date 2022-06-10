@@ -4,9 +4,10 @@ import trimesh
 import torch
 from trimesh.transformations import rotation_matrix
 from pytorch3d.structures import Meshes
-from .numeric import numpify
+from .numeric import numpize
 
 
+_Rx = rotation_matrix(np.pi, [1, 0, 0])  # rotate pi around x-axis
 _Ry = rotation_matrix(np.pi, [0, 1, 0])  # rotate pi around y-axis
 
 
@@ -15,8 +16,8 @@ def _to_trimesh(mesh_in) -> trimesh.Trimesh:
         return mesh_in
     elif isinstance(mesh_in, Meshes):
         return trimesh.Trimesh(
-                    vertices=numpify(mesh_in.verts_packed()),
-                    faces=numpify(mesh_in.faces_packed()))
+                    vertices=numpize(mesh_in.verts_packed()),
+                    faces=numpize(mesh_in.faces_packed()))
     else:
         raise ValueError("Mesh type not understood.")
 
@@ -31,7 +32,12 @@ def visualize_mesh(mesh_data,
             - pytorch3d.Meshes
             - list of SimpleMeshes
             - list of pytorch3d.Meshes
-        viewpoint: str, one of {'pytorch3d', 'opengl'}
+        viewpoint: str, one of 
+            {
+                'pytorch3d', 
+                'opengl',
+                'neural_renderer',
+            }
 
     Return:
         trimesh.Scene
@@ -51,6 +57,14 @@ def visualize_mesh(mesh_data,
     if viewpoint == 'pytorch3d':
         s = s.copy()  # We don't want the in-place transform affecting input data
         s.apply_transform(_Ry)
+    elif viewpoint == 'opengl':
+        # By default trimesh uses opengl mode
+        pass
+    elif viewpoint == 'neural_renderer':
+        s = s.copy()
+        s.apply_transform(_Rx)
+    else:
+        raise ValueError
 
     return s
 

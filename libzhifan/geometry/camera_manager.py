@@ -1,4 +1,4 @@
-""" A helper class that manages camera parameters 
+""" A helper class that manages camera parameters
 
 Ref on crop and resize:
 https://github.com/BerkeleyAutomation/perception/blob/0.0.1/perception/camera_intrinsics.py#L176-#L236
@@ -9,21 +9,21 @@ import numpy as np
 
 class CameraManager:
 
-    """ 
-    By default, the parameter is in 
+    """
+    By default, the parameter is in
     conventional non-NDC representation.
 
-    use 
+    use
 
     ```fx, fy, cx, cy = self.to_ndc()```
-    or 
+    or
     ```fx, fy, cx, cy = self.to_nr(orig_size)```
 
-    to convert camera parameters to pytorch3d's NDC or neural_renderer's 
+    to convert camera parameters to pytorch3d's NDC or neural_renderer's
     representation.
 
     """
-    
+
     def __init__(self,
                  fx,
                  fy,
@@ -35,9 +35,9 @@ class CameraManager:
         """
 
         Args:
-            in_ndc (bool): 
+            in_ndc (bool):
                 If True, will assume {fx,fy,cx,cy} are in ndc format.
-            
+
         """
         if in_ndc:
             half_h = img_h / 2
@@ -55,7 +55,8 @@ class CameraManager:
         self.img_w = int(img_w)
 
     def __repr__(self):
-        return f"CameraManager\n K (non-NDC) = \n {self.get_K()}"
+        return f"CameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
+            f"K (non-NDC) = \n {self.get_K()}"
 
     def get_K(self, in_ndc=True):
         """ Returns: (3, 3) """
@@ -82,7 +83,7 @@ class CameraManager:
         return fx, fy, cx, cy, self.img_h, self.img_w
 
     def crop(self, crop_bbox):
-        """ 
+        """
         Args:
             crop_bbox: (4,) x0y0wh
         """
@@ -97,6 +98,14 @@ class CameraManager:
             img_h=h_crop, img_w=w_crop,
             in_ndc=False
         )
+
+    def uncrop(self, crop_bbox, orig_h, orig_w):
+        """
+        The reverse of self.crop()
+        """
+        local_to_global = [
+            - crop_bbox[0], - crop_bbox[1], orig_w, orig_h]
+        return self.crop(local_to_global)
 
     def resize(self, new_h, new_w):
         scale_x = new_w / self.img_w
@@ -113,7 +122,7 @@ class CameraManager:
         )
 
     def crop_and_resize(self, crop_bbox, output_size):
-        """ 
+        """
         Crop a window (changing the center & boundary of scene),
         and resize the output image (implicitly chaning intrinsic matrix)
 
@@ -133,5 +142,5 @@ class CameraManager:
             raise ValueError("output_size not understood.")
 
         return self.crop(crop_bbox).resize(new_h, new_w)
-    
-        
+
+

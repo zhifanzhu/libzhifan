@@ -11,7 +11,7 @@ from pytorch3d.renderer import (
 from pytorch3d.structures import Meshes
 from pytorch3d.structures import join_meshes_as_scene
 from . import coor_utils
-from .numeric import numpify
+from .numeric import numpize
 from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
 from .camera_manager import CameraManager
@@ -21,7 +21,6 @@ try:
     HAS_NR = True
 except ImportError:
     HAS_NR = False
-
 
 
 """
@@ -99,7 +98,7 @@ model -> screen
 
 To render a cube [-1, 1]^3, on a W x W = (200, 200) image
 
-naive method: 
+naive method:
     - fx=fy=cx=cy=W/2, image_size=(W, W)
 
 pytorch3d in_ndc=True:
@@ -137,7 +136,7 @@ def perspective_projection(mesh_data,
     """ Project verts/mesh by Perspective camera.
 
     Args:
-        mesh_data: one of 
+        mesh_data: one of
             - SimpleMesh
             - pytorch3d.Meshes
             - list of SimpleMeshes
@@ -154,7 +153,7 @@ def perspective_projection(mesh_data,
         in_ndc: bool
         R: (3, 3) camera extrinsic matrix.
         T: (3,) camera extrinsic matrix.
-        image: (H, W, 3), if `image` is None, 
+        image: (H, W, 3), if `image` is None,
             will render a image with size (img_h, img_w).
 
     Returns:
@@ -186,13 +185,13 @@ def perspective_projection(mesh_data,
         )
         return img
 
-def perspective_projection_by_camera(mesh_data, 
+def perspective_projection_by_camera(mesh_data,
                                      camera: CameraManager,
                                      method=dict(
                                          name='pytorch3d',
                                          in_ndc=False,
                                      )):
-    """ 
+    """
     Similar to perspective_projection() but with CameraManager as argument.
     """
     fx = camera.fx
@@ -219,9 +218,9 @@ def naive_perspective_projection(mesh_data,
                                  color='green',
                                  thickness=4,
                                  **kwargs):
-    """ 
+    """
     Given image size, naive calculation of K should be
-    
+
     fx = cx = img_w/2, fy = cy = img_h/2
 
     """
@@ -250,7 +249,7 @@ def pytorch3d_perspective_projection(mesh_data,
                                      image=None,
                                      flip_canvas_xy=False,
                                      **kwargs):
-    """ 
+    """
     TODO
     flip issue: https://github.com/facebookresearch/pytorch3d/issues/78
 
@@ -274,7 +273,7 @@ def pytorch3d_perspective_projection(mesh_data,
     else:
         _mesh_data = _to_th_mesh(mesh_data)
     _mesh_data.to(device)
-    
+
     R = torch.unsqueeze(torch.as_tensor(R), 0)
     T = torch.unsqueeze(torch.as_tensor(T), 0)
     cameras = pytorch3d.renderer.PerspectiveCameras(
@@ -283,7 +282,7 @@ def pytorch3d_perspective_projection(mesh_data,
         in_ndc=in_ndc,
         R=R,
         T=T,
-        image_size=[image_size],   
+        image_size=[image_size],
     )
 
     raster_settings = RasterizationSettings(
@@ -310,7 +309,7 @@ def pytorch3d_perspective_projection(mesh_data,
         out = rendered.cpu().numpy().squeeze()[..., :3]
     return out
 
-    
+
 def neural_renderer_perspective_projection(mesh_data,
                                            cam_f,
                                            cam_p,
@@ -319,7 +318,7 @@ def neural_renderer_perspective_projection(mesh_data,
                                            image=None,
                                            orig_size=None,
                                            **kwargs):
-    """ 
+    """
     TODO(low priority): add image support, add texture render support.
 
     Args:
@@ -365,4 +364,4 @@ def neural_renderer_perspective_projection(mesh_data,
         faces,
         mode='silhouettes'
     )
-    return numpify(img)
+    return numpize(img)

@@ -3,18 +3,28 @@
 import numpy as np
 import torch
 
-from .numeric import nptify
+from .numeric import nptify, numpize
+
+def nptify_wrapper(func):
+    def nptified_func(*args):
+        type_convertor = nptify(args[0])
+        _args = map(numpize, args)
+        ret = func(*_args)
+        type_convertor(ret)
+    return nptified_func
 
 
 """ Functions dealing with homogenous coordiate transforms. """
 
 
+# @nptify_wrapper
 def to_homo_xn(pts):
     """ assume [x, n], output [x+1, n]"""
     n = pts.shape[1]
     return np.vstack((pts, np.ones([1, n])))
 
 
+# @nptify_wrapper
 def to_homo_nx(pts):
     """ [n,x] -> [n,x+1] """
     return to_homo_xn(pts.T).T
@@ -99,9 +109,10 @@ def concat_rot_transl_4x4(rot, transl):
     Returns: (4, 4)
 
     """
-    Rt = np.zeros([4, 4])
+    typer = nptify(rot)
+    Rt = typer(np.zeros([4, 4]))
     Rt[0:3, 0:3] = rot
-    Rt[0:3, -1] = transl.squeeze()
+    Rt[0:3, -1] = typer(transl.squeeze())
     Rt[-1, -1] = 1.0
     return Rt
 
@@ -124,6 +135,37 @@ def rotation_epfl(alpha, beta, gamma):
     R[2, 2] = cos_b
 
     return R
+
+
+def lift_rotation_se3(rot_mat):
+    """ 
+    Life a (3, 3) rotation matrix into (4, 4) se3 transformation.
+    """
+    transform = nptify(rot_mat)(np.eye(4))
+    transform[..., :3, :3] = rot_mat
+    return transform
+
+
+# def rot6d_to_matrix(rot_6d):
+#     """
+#     TODO, finalize
+#     Convert 6D rotation representation to 3x3 rotation matrix.
+#     Reference: Zhou et al., "On the Continuity of Rotation Representations in Neural
+#     Networks", CVPR 2019
+
+#     Args:
+#         rot_6d (B x 6): Batch of 6D Rotation representation.
+
+#     Returns:
+#         Rotation matrices (B x 3 x 3).
+#     """
+#     rot_6d = rot_6d.view(-1, 3, 2)
+#     a1 = rot_6d[:, :, 0]
+#     a2 = rot_6d[:, :, 1]
+#     b1 = F.normalize(a1)
+#     b2 = F.normalize(a2 - torch.einsum("bi,bi->b", b1, a2).unsqueeze(-1) * b1)
+#     b3 = torch.cross(b1, b2)
+#     return torch.stack((b1, b2, b3), dim=-1)
 
 
 # def rotation_xyz_from_euler(x_rot, y_rot, z_rot):

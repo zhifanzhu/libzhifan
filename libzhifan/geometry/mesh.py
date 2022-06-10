@@ -7,7 +7,7 @@ from trimesh import PointCloud, Trimesh
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer import TexturesVertex
 
-from .numeric import numpify
+from .numeric import numpize
 
 
 def _drop_dim0(tensor):
@@ -41,8 +41,8 @@ class SimpleMesh(Trimesh):
             verts: (V, 3) float32
             faces: (F, 3) int
         """
-        verts = numpify(_drop_dim0(verts))
-        faces = numpify(_drop_dim0(faces))
+        verts = numpize(_drop_dim0(verts))
+        faces = numpize(_drop_dim0(faces))
 
         super(SimpleMesh, self).__init__(
             vertices=verts,

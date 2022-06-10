@@ -4,7 +4,7 @@ import torch
 
 
 def nptify(x) -> Callable:
-    """
+    """ Num-Py-Torch-i-FYing
     Make a type convertor based on the type of x
 
     Example:
@@ -22,7 +22,7 @@ def nptify(x) -> Callable:
         return lambda a: np.asarray(a)
 
 
-def numpify(tensor: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+def numpize(tensor: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
     if isinstance(tensor, torch.Tensor):
         return tensor.detach().squeeze().cpu().numpy()
     elif isinstance(tensor, np.ndarray):
