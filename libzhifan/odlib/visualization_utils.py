@@ -12,7 +12,7 @@ import cv2
 
 # ORDER : bbox coordinate order
 # NORM : normalized or absolute
-ORDER = 'xyxy'  # 'yxyx' for google
+ORDER = 'xyxy'  # one of {'xyxy', 'yxyx', 'xywh'}
 NORM = False  # True for google
 setup_flag = False
 
@@ -88,9 +88,14 @@ def draw_box_image(image,
     if not setup_flag:
         print("WARN: setup() not run, \
               default order:{ORDER}, default normalize:{NORM}")
-    assert ORDER in set({'xyxy', 'yxyx'})
+    assert ORDER in set({'xyxy', 'yxyx', 'xywh'})
     if ORDER == 'xyxy':
-        ymin, xmin, ymax, xmax = xmin, ymin, xmax, ymax
+        xmin, ymin, xmax, ymax = ymin, xmin, ymax, xmax
+    elif ORDER == 'yxyx':
+        pass
+    elif ORDER == 'xywh':
+        xmin, ymin, box_w, box_h = ymin, xmin, ymax, xmax
+        xmax, ymax = xmin + box_w, ymax + box_h
     # if (ymin >= ymax or xmin >= xmax):
     #     print(ymin, xmin, ymax, xmax)
     #     raise ValueError("ymin > ymax or xmin > xmax, format *is not* [y, x, w, h]" )

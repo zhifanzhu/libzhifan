@@ -36,7 +36,7 @@ def visualize_mesh(mesh_data,
             {
                 'pytorch3d', 
                 'opengl',
-                'neural_renderer',
+                'neural_renderer'/'nr'
             }
 
     Return:
@@ -60,7 +60,7 @@ def visualize_mesh(mesh_data,
     elif viewpoint == 'opengl':
         # By default trimesh uses opengl mode
         pass
-    elif viewpoint == 'neural_renderer':
+    elif viewpoint == 'neural_renderer' or viewpoint == 'nr':
         s = s.copy()
         s.apply_transform(_Rx)
     else:

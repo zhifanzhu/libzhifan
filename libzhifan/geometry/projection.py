@@ -6,10 +6,11 @@ import pytorch3d
 from pytorch3d.renderer import (
     PerspectiveCameras, RasterizationSettings, PointLights,
     MeshRasterizer, SoftPhongShader, MeshRenderer,
-    TexturesUV,
 )
+from pytorch3d.transforms import Transform3d
 from pytorch3d.structures import Meshes
 from pytorch3d.structures import join_meshes_as_scene
+
 from . import coor_utils
 from .numeric import numpize
 from .mesh import SimpleMesh
@@ -177,34 +178,35 @@ def perspective_projection(mesh_data,
             **method, image=image
         )
         return img
-    elif method_name == 'neural_renderer':
+    elif method_name == 'neural_renderer' or method_name == 'nr':
         assert HAS_NR
         img = neural_renderer_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
             **method, image=image
         )
         return img
+    else:
+        raise ValueError(f"method_name: {method_name} not understood.")
+
 
 def perspective_projection_by_camera(mesh_data,
                                      camera: CameraManager,
                                      method=dict(
                                          name='pytorch3d',
                                          in_ndc=False,
-                                     )):
+                                     ),
+                                     image=None):
     """
     Similar to perspective_projection() but with CameraManager as argument.
     """
-    fx = camera.fx
-    fy = camera.fy
-    cx = camera.cx
-    cy = camera.cy
-    img_h = camera.img_h
-    img_w = camera.img_w
+    fx, fy, cx, cy, img_h, img_w = camera.unpack()
+    assert method.get('in_ndc', False) == False, "in_ndc Must be False for CamaraManager"
     img = perspective_projection(
         mesh_data,
         cam_f=(fx, fy),
         cam_p=(cx, cy),
         method=method.copy(),  # Avoid being optimized by python
+        image=image,
         img_h=int(img_h),
         img_w=int(img_w),
     )
@@ -243,7 +245,8 @@ def naive_perspective_projection(mesh_data,
 def pytorch3d_perspective_projection(mesh_data,
                                      cam_f,
                                      cam_p,
-                                     in_ndc=True,
+                                     in_ndc: bool,
+                                     coor_sys='pytorch3d',
                                      R=_R,
                                      T=_T,
                                      image=None,
@@ -255,6 +258,14 @@ def pytorch3d_perspective_projection(mesh_data,
 
     Args:
         image: (H, W, 3) torch.Tensor with values in [0, 1]
+
+        coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
+            Set the input coordinate sysem.
+            - 'pytorch3d': render using pytorch3d coordinate system,
+                i.e. X-left, Y-top, Z-in
+            - 'neural_renderer'/'nr':
+                    X-right, Y-down, Z-in.
+
         flip_canvas_xy: see flip issue
     """
     def _to_th_mesh(m):
@@ -263,7 +274,7 @@ def pytorch3d_perspective_projection(mesh_data,
         elif isinstance(m, SimpleMesh):
             return m.synced_mesh
         else:
-            raise ValueError
+            raise ValueError(f"type {type(m)} not understood.")
 
     device = 'cuda'
     image_size = image.shape[:2]
@@ -273,6 +284,18 @@ def pytorch3d_perspective_projection(mesh_data,
     else:
         _mesh_data = _to_th_mesh(mesh_data)
     _mesh_data.to(device)
+
+    if coor_sys == 'pytorch3d':
+        pass  # Nothing
+    elif coor_sys == 'neural_renderer' or coor_sys == 'nr':
+        # flip XY is the same as Rotation around Z
+        _Rz_mat = torch.as_tensor([[
+            [-1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]], dtype=torch.float32, device=device)
+        _mesh_data = coor_utils.torch3d_apply_transform_matrix(
+            _mesh_data, _Rz_mat)
 
     R = torch.unsqueeze(torch.as_tensor(R), 0)
     T = torch.unsqueeze(torch.as_tensor(T), 0)
@@ -304,9 +327,9 @@ def pytorch3d_perspective_projection(mesh_data,
         mask = is_bg[..., None].repeat(1, 1, 1, 3)
         out = dst.masked_scatter(
             mask, image[None][mask])
-        out = out.cpu().numpy().squeeze()
+        out = numpize(out)
     else:
-        out = rendered.cpu().numpy().squeeze()[..., :3]
+        out = numpize(rendered)[..., :3]
     return out
 
 

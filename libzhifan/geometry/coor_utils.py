@@ -1,9 +1,15 @@
 """ Utility function for coordinate system. """
 
+from typing import Union
+
 import numpy as np
 import torch
 
+from pytorch3d.structures import Meshes, Pointclouds
+from pytorch3d.transforms import Transform3d
+
 from .numeric import nptify, numpize
+
 
 def nptify_wrapper(func):
     def nptified_func(*args):
@@ -352,6 +358,7 @@ def reverse_offset(x2d, M_offset):
 
 """ Change of coordinate system. """
 
+
 def points_opencv_to_opengl(pts):
     """
     Args:
@@ -364,3 +371,67 @@ def points_opencv_to_opengl(pts):
     pts[:, 1] = - pts[:, 1]
     return pts
 
+
+""" Pytorch3d transforms 
+"""
+
+
+def torch3d_get_verts(geom: Union[Meshes, Pointclouds]) -> torch.Tensor:
+    if isinstance(geom, Meshes) or isinstance(geom, Meshes):
+        view_points = geom.verts_padded()
+    elif isinstance(geom, Pointclouds):
+        view_points = geom.points_padded()
+    elif isinstance(geom, torch.Tensor):
+        view_points = geom
+    else:
+        raise NotImplementedError(type(geom))
+    return view_points
+
+
+def torch3d_apply_transform(
+        geom: Union[Meshes, Pointclouds, torch.Tensor],
+        trans: Transform3d):
+    """ 
+    Returns:
+        tranformed geometry object.
+    """
+    verts = torch3d_get_verts(geom)
+    verts = trans.transform_points(verts)
+    if hasattr(geom, 'update_padded'):
+        geom = geom.update_padded(verts)
+    else:
+        geom = verts
+    return geom
+
+
+def torch3d_apply_transform_matrix(
+        geom: Union[Meshes, Pointclouds, torch.Tensor],
+        trans,
+        convert_trans_col_to_row=True):
+    """ 
+    Note: transformation is implemented as right-multiplication,
+    hence geom is row-vector.
+
+    Args:
+        trans: transformation. Either 
+            - matrix of (4, 4) 
+            - matrix of (1, 4, 4)
+            - Transform3d 
+
+        convert_trans_col_to_rw: bool
+
+    Returns:
+        tranformed geometry object.
+    """
+    if isinstance(trans, Transform3d):
+        return torch3d_apply_transform(geom, trans)
+
+    trans = torch.as_tensor(trans).reshape(1, 4, 4)
+    if convert_trans_col_to_row:
+        trans = Transform3d(
+            matrix=trans.transpose(1, 2), device=geom.device)
+    else:
+        trans = Transform3d(
+            matrix=trans, device=geom.device)
+    
+    return torch3d_apply_transform(geom, trans)

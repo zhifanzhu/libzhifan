@@ -47,10 +47,10 @@ class CameraManager:
             cx = half_w * (cx + 1)  # W/2 * cx + W/2
             cy = half_h * (cy + 1)
 
-        self.fx = fx
-        self.fy = fy
-        self.cx = cx
-        self.cy = cy
+        self.fx = float(fx)
+        self.fy = float(fy)
+        self.cx = float(cx)
+        self.cy = float(cy)
         self.img_h = int(img_h)
         self.img_w = int(img_w)
 
@@ -58,7 +58,7 @@ class CameraManager:
         return f"CameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
             f"K (non-NDC) = \n {self.get_K()}"
 
-    def get_K(self, in_ndc=True):
+    def get_K(self):
         """ Returns: (3, 3) """
         K = np.float32([
             [self.fx, 0, self.cx],
@@ -69,6 +69,22 @@ class CameraManager:
 
     def unpack(self):
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
+    
+    @staticmethod
+    def from_nr(mat, image_size: int):
+        """ 
+        Args:
+            mat: (3, 3)
+            image_size: H and W of neural_renderer's image
+        Returns:
+            CameraManager
+        """
+        _mat = image_size * np.asarray(mat).squeeze()
+        fx, fy = _mat[..., 0, 0], _mat[..., 1, 1]
+        cx, cy = _mat[..., 0, 2], _mat[..., 1, 2]
+        return CameraManager(
+            fx=fx, fy=fy, cx=cx, cy=cy, img_h=image_size, img_w=image_size
+        )
 
     def to_ndc(self):
         half_h, half_w = self.img_h / 2, self.img_w / 2
@@ -76,11 +92,18 @@ class CameraManager:
         cx, cy = self.cx/half_w - 1, self.cy/half_h - 1
         return fx, fy, cx, cy, self.img_h, self.img_w
 
-    def to_nr(self, orig_size):
+    def to_nr(self, return_mat=False):
         """ Convert to neural renderer format. """
         fx, fy = self.fx / self.img_w, self.fy / self.img_h
         cx, cy = self.cx / self.img_w, self.cy / self.img_h
-        return fx, fy, cx, cy, self.img_h, self.img_w
+        if return_mat:
+            return np.asarray([
+                [fx, 0, cx],
+                [0, fy, cy],
+                [0, 0, 1],
+            ])
+        else:
+            return fx, fy, cx, cy, self.img_h, self.img_w
 
     def crop(self, crop_bbox):
         """
