@@ -283,7 +283,7 @@ def pytorch3d_perspective_projection(mesh_data,
             meshes=[_to_th_mesh(m) for m in mesh_data])
     else:
         _mesh_data = _to_th_mesh(mesh_data)
-    _mesh_data.to(device)
+    _mesh_data = _mesh_data.to(device)
 
     if coor_sys == 'pytorch3d':
         pass  # Nothing
@@ -296,6 +296,8 @@ def pytorch3d_perspective_projection(mesh_data,
             [0, 0, 0, 1]]], dtype=torch.float32, device=device)
         _mesh_data = coor_utils.torch3d_apply_transform_matrix(
             _mesh_data, _Rz_mat)
+    else:
+        raise ValueError(f"coor_sys '{coor_sys}' not understood.")
 
     R = torch.unsqueeze(torch.as_tensor(R), 0)
     T = torch.unsqueeze(torch.as_tensor(T), 0)

@@ -43,11 +43,11 @@ class BoxUitlsTest(unittest.TestCase):
 
         box_1d_xyxy_th = torch.as_tensor(box_1d_xyxy)
         box_1d_xywh_th = torch.FloatTensor([2, 3, 3, 4])
-        torch.allclose(box_utils.xyxy_to_xywh(box_1d_xyxy_th), box_1d_xywh_th)
+        torch.testing.assert_allclose(box_utils.xyxy_to_xywh(box_1d_xyxy_th), box_1d_xywh_th)
 
         box_3d_xywh_th = torch.as_tensor(box_3d_xywh)
         box_3d_xyxy_th = torch.as_tensor(box_3d_xyxy)
-        torch.allclose(box_utils.xywh_to_xyxy(box_3d_xywh_th), box_3d_xyxy_th)
+        torch.testing.assert_allclose(box_utils.xywh_to_xyxy(box_3d_xywh_th), box_3d_xyxy_th)
     
     def test_yxyx(self):
         # TODO?
@@ -75,7 +75,7 @@ class BoxUitlsTest(unittest.TestCase):
             ),
             box_2d_xyxy.copy()
         )
-        torch.allclose(
+        torch.testing.assert_allclose(
             box_utils.xcycwh_to_xyxy( 
                 box_utils.xywh_to_xcycwh(
                     box_utils.xyxy_to_xywh(

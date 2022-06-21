@@ -36,29 +36,20 @@ class SimpleMesh(Trimesh):
     def __init__(self,
                  verts: Union[np.ndarray, torch.Tensor],
                  faces: Union[np.ndarray, torch.Tensor],
-                 copy_orig=True):
+                 process=False):
         """
         Args:
             verts: (V, 3) float32
             faces: (F, 3) int
-            copy_orig: copy original input
-                so self.synced_mesh holds original input
-                We have to clone original input, as trimesh may alter `verts``
+            process: see Trimesh
         """
-        if copy_orig:
-            self.orig_verts = torch.as_tensor(
-                _drop_dim0(verts)).clone()
-            self.orig_faces = torch.as_tensor(
-                _drop_dim0(faces)).clone()
-        else:
-            self.orig_verts = self.orig_faces = None
-
         verts = numpize(_drop_dim0(verts))
         faces = numpize(_drop_dim0(faces))
 
         super(SimpleMesh, self).__init__(
             vertices=verts,
-            faces=faces)
+            faces=faces,
+            process=process)
 
     def copy(self):
         copied = super(SimpleMesh, self).copy()
@@ -67,12 +58,8 @@ class SimpleMesh(Trimesh):
     @property
     def synced_mesh(self):
         device = 'cuda'
-        if self.orig_verts is None:
-            verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
-            faces = torch.as_tensor(self.faces, device=device)
-        else:
-            verts = torch.as_tensor(self.orig_verts, device=device, dtype=torch.float32)
-            faces = torch.as_tensor(self.orig_faces, device=device)
+        verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
+        faces = torch.as_tensor(self.faces, device=device)
         verts_rgb = torch.ones_like(verts) * \
             torch.as_tensor([0.65, 0.74, 0.86], device=device)
         textures = TexturesVertex(verts_features=verts_rgb[None].to(device))
@@ -94,22 +81,28 @@ class SimpleMesh(Trimesh):
         """
         translation = np.asanyarray(translation, dtype=np.float64)
         if translation.shape == (2,):
-            # create a planar matrix if we were passed a 2D offset
-            return self.apply_transform(
-                tf.planar_matrix(offset=translation))
+            raise NotImplementedError
         elif translation.shape != (3,):
             raise ValueError('Translation must be (3,) or (2,)!')
 
         # manually create a translation matrix
         matrix = np.eye(4)
         matrix[:3, 3] = translation
-        return self.apply_transform(matrix)
+        self.apply_transform(matrix)
+        return self
 
     def apply_translation(self, translation):
         """
-        Returns a copy of translated mesh.
+        Args:
+            translation : (3,) float
+                Translation in XYZ
+
+        Returns:
+            a copy of translated mesh.
         """
-        return self.copy().apply_translation_(translation)
+        out = self.copy()
+        out.apply_translation_(translation)
+        return out
 
 
 # class SimplePCD(PointCloud):

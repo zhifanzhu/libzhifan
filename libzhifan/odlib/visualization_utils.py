@@ -95,7 +95,7 @@ def draw_box_image(image,
         pass
     elif ORDER == 'xywh':
         xmin, ymin, box_w, box_h = ymin, xmin, ymax, xmax
-        xmax, ymax = xmin + box_w, ymax + box_h
+        xmax, ymax = xmin + box_w, ymin + box_h
     # if (ymin >= ymax or xmin >= xmax):
     #     print(ymin, xmin, ymax, xmax)
     #     raise ValueError("ymin > ymax or xmin > xmax, format *is not* [y, x, w, h]" )
