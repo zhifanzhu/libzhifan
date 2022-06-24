@@ -9,6 +9,11 @@ from pytorch3d.renderer import TexturesVertex
 
 from .numeric import numpize
 
+_COLORS = dict(
+    light_blue=(0.65, 0.74, 0.86),
+    yellow=(.85, .85, 0),
+)
+
 
 def _drop_dim0(tensor):
     if not hasattr(tensor, 'shape'):
@@ -36,12 +41,15 @@ class SimpleMesh(Trimesh):
     def __init__(self,
                  verts: Union[np.ndarray, torch.Tensor],
                  faces: Union[np.ndarray, torch.Tensor],
-                 process=False):
+                 process=False,
+                 tex_color='light_blue'):
         """
         Args:
             verts: (V, 3) float32
             faces: (F, 3) int
-            process: see Trimesh
+            process : bool
+            if True, Nan and Inf values will be removed
+            immediately and vertices will be merged
         """
         verts = numpize(_drop_dim0(verts))
         faces = numpize(_drop_dim0(faces))
@@ -50,6 +58,7 @@ class SimpleMesh(Trimesh):
             vertices=verts,
             faces=faces,
             process=process)
+        self.tex_color = tex_color
 
     def copy(self):
         copied = super(SimpleMesh, self).copy()
@@ -61,7 +70,7 @@ class SimpleMesh(Trimesh):
         verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
         faces = torch.as_tensor(self.faces, device=device)
         verts_rgb = torch.ones_like(verts) * \
-            torch.as_tensor([0.65, 0.74, 0.86], device=device)
+            torch.as_tensor(_COLORS[self.tex_color], device=device)
         textures = TexturesVertex(verts_features=verts_rgb[None].to(device))
         return Meshes(
             verts=[verts],
