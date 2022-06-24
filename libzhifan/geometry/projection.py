@@ -121,11 +121,24 @@ Ref:
 
 """
 
+AnyMesh = Union[SimpleMesh, Meshes, List[Meshes], List[SimpleMesh]]
+
 _R = torch.eye(3)
 _T = torch.zeros(3)
 
 
-def perspective_projection(mesh_data,
+def _to_th_mesh(m: AnyMesh) -> Meshes:
+    if isinstance(m, list):
+        return join_meshes_as_scene(list(map(_to_th_mesh, m)))
+    elif isinstance(m, Meshes):
+        return m
+    elif isinstance(m, SimpleMesh):
+        return m.synced_mesh
+    else:
+        raise ValueError(f"type {type(m)} not understood.")
+
+
+def perspective_projection(mesh_data: AnyMesh,
                            cam_f: Tuple[float],
                            cam_p: Tuple[float],
                            method=dict(
@@ -133,7 +146,7 @@ def perspective_projection(mesh_data,
                                ),
                            image=None,
                            img_h=None,
-                           img_w=None):
+                           img_w=None) -> np.ndarray:
     """ Project verts/mesh by Perspective camera.
 
     Args:
@@ -189,13 +202,13 @@ def perspective_projection(mesh_data,
         raise ValueError(f"method_name: {method_name} not understood.")
 
 
-def perspective_projection_by_camera(mesh_data,
+def perspective_projection_by_camera(mesh_data: AnyMesh,
                                      camera: CameraManager,
                                      method=dict(
                                          name='pytorch3d',
                                          in_ndc=False,
                                      ),
-                                     image=None):
+                                     image=None) -> np.ndarray:
     """
     Similar to perspective_projection() but with CameraManager as argument.
     """
@@ -213,7 +226,7 @@ def perspective_projection_by_camera(mesh_data,
     return img
 
 
-def naive_perspective_projection(mesh_data,
+def naive_perspective_projection(mesh_data: AnyMesh,
                                  cam_f,
                                  cam_p,
                                  image,
@@ -242,7 +255,7 @@ def naive_perspective_projection(mesh_data,
     return img
 
 
-def pytorch3d_perspective_projection(mesh_data,
+def pytorch3d_perspective_projection(mesh_data: AnyMesh,
                                      cam_f,
                                      cam_p,
                                      in_ndc: bool,
@@ -251,7 +264,7 @@ def pytorch3d_perspective_projection(mesh_data,
                                      T=_T,
                                      image=None,
                                      flip_canvas_xy=False,
-                                     **kwargs):
+                                     **kwargs) -> np.ndarray:
     """
     TODO
     flip issue: https://github.com/facebookresearch/pytorch3d/issues/78
@@ -268,21 +281,9 @@ def pytorch3d_perspective_projection(mesh_data,
 
         flip_canvas_xy: see flip issue
     """
-    def _to_th_mesh(m):
-        if isinstance(m, Meshes):
-            return m
-        elif isinstance(m, SimpleMesh):
-            return m.synced_mesh
-        else:
-            raise ValueError(f"type {type(m)} not understood.")
-
     device = 'cuda'
     image_size = image.shape[:2]
-    if isinstance(mesh_data, list):
-        _mesh_data = join_meshes_as_scene(
-            meshes=[_to_th_mesh(m) for m in mesh_data])
-    else:
-        _mesh_data = _to_th_mesh(mesh_data)
+    _mesh_data = _to_th_mesh(mesh_data)
     _mesh_data = _mesh_data.to(device)
 
     if coor_sys == 'pytorch3d':
@@ -335,7 +336,7 @@ def pytorch3d_perspective_projection(mesh_data,
     return out
 
 
-def neural_renderer_perspective_projection(mesh_data,
+def neural_renderer_perspective_projection(mesh_data: SimpleMesh,
                                            cam_f,
                                            cam_p,
                                            R=_R,
@@ -390,3 +391,64 @@ def neural_renderer_perspective_projection(mesh_data,
         mode='silhouettes'
     )
     return numpize(img)
+
+
+def project_standardized(mesh_data: AnyMesh,
+                         direction='+z',
+                         image_size=200,
+                         pad=0.2,
+                         method=dict(
+                             name='pytorch3d',
+                             in_ndc=False,
+                             coor_sys='nr'
+                         )) -> np.ndarray:
+    """ 
+    Given any mesh(es), this function renders the zoom-in images.
+    The meshes are proecessed to be in [-0.5, 0.5]^3 space, 
+    then a weak-perspective camera is applied.
+
+    Args:
+        pad: the fraction to be padded around rendered image.
+
+    Returns:
+        (H, W, 3)
+    """
+    _mesh_data = _to_th_mesh(mesh_data)
+    xmin, ymin, zmin = torch.min(_mesh_data.verts_packed(), 0).values
+    xmax, ymax, zmax = torch.max(_mesh_data.verts_packed(), 0).values
+    xc, yc, zc = map(lambda x: x/2, (xmin+xmax, ymin+ymax, zmin+zmax))
+    dx, dy, dz = xmax-xmin, ymax-ymin, zmax-zmin
+    dmax = max(dx, max(dy, dz))
+
+    large_z = 20  # can be arbitrary large value >> 1
+    _mesh_data = coor_utils.torch3d_apply_translation(
+        _mesh_data, (-xc, -yc, -zc))
+    _mesh_data = coor_utils.torch3d_apply_scale(_mesh_data, 1./dmax)
+    if direction == '+z':
+        pass  # Nothing need to be changed
+    elif direction == '-z':
+        _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, 180)
+    elif direction == '+x':
+        # I guarantee you it's +90, not -90
+        _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, +90)
+    elif direction == '-x':
+        _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, -90)
+    elif direction == '+y':
+        _mesh_data = coor_utils.torch3d_apply_Rx(_mesh_data, +90)
+    elif direction == '-y':
+        _mesh_data = coor_utils.torch3d_apply_Rx(_mesh_data, -90)
+    else:
+        raise ValueError("direction not understood.")
+    _mesh_data = coor_utils.torch3d_apply_translation(
+        _mesh_data, (0, 0, large_z))
+
+    fx = fy = 2*large_z / (1+pad)
+    camera = CameraManager(
+        fx=fx, fy=fy, 
+        cx=0, cy=0, img_h=image_size, img_w=image_size,
+        in_ndc=True,
+    )
+    return perspective_projection_by_camera(
+        _mesh_data, 
+        camera, 
+        method=method)

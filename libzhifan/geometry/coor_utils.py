@@ -418,7 +418,7 @@ def torch3d_apply_transform_matrix(
             - matrix of (1, 4, 4)
             - Transform3d 
 
-        convert_trans_col_to_rw: bool
+        convert_trans_col_to_rw: bool, i.e. transpose
 
     Returns:
         tranformed geometry object.
@@ -435,3 +435,66 @@ def torch3d_apply_transform_matrix(
             matrix=trans, device=geom.device)
     
     return torch3d_apply_transform(geom, trans)
+
+
+def torch3d_apply_scale(geom: Union[Meshes, Pointclouds, torch.Tensor],
+                        scale: float):
+    device = geom.device
+    trans = torch.eye(4).reshape(1, 4, 4).to(device)
+    trans[..., [0,1,2], [0,1,2]] = scale
+    return torch3d_apply_transform_matrix(
+        geom,
+        Transform3d(matrix=trans, device=device),
+        convert_trans_col_to_row=True)
+
+
+def torch3d_apply_translation(geom: Union[Meshes, Pointclouds, torch.Tensor],
+                              translation):
+    """
+    Args:
+        translation: (3,)
+    """
+    device = geom.device
+    trans = torch.eye(4).reshape(1, 4, 4).to(device)
+    trans[..., :3, -1] = torch.as_tensor(translation, device=device)
+    return torch3d_apply_transform_matrix(
+        geom, trans, convert_trans_col_to_row=True)
+
+
+def torch3d_apply_Rx(geom: Union[Meshes, Pointclouds, torch.Tensor],
+                     degree: int):
+    theta = degree / 180 * np.pi
+    c, s = np.cos(theta), np.sin(theta)
+    Rx_mat = torch.as_tensor([[
+        [1, 0, 0, 0],
+        [0, c, -s, 0],
+        [0, s, c, 0],
+        [0, 0, 0, 1]]], dtype=torch.float32, device=geom.device)
+    return torch3d_apply_transform_matrix(
+        geom, Rx_mat, convert_trans_col_to_row=True)
+
+
+def torch3d_apply_Ry(geom: Union[Meshes, Pointclouds, torch.Tensor],
+                     degree: int):
+    theta = degree / 180 * np.pi
+    c, s = np.cos(theta), np.sin(theta)
+    Ry_mat = torch.as_tensor([[
+        [c, 0, -s, 0],
+        [0, 1, 0, 0],
+        [s, 0, c, 0],
+        [0, 0, 0, 1]]], dtype=torch.float32, device=geom.device)
+    return torch3d_apply_transform_matrix(
+        geom, Ry_mat, convert_trans_col_to_row=True)
+
+
+def torch3d_apply_Rz(geom: Union[Meshes, Pointclouds, torch.Tensor],
+                     degree: int):
+    theta = degree / 180 * np.pi
+    c, s = np.cos(theta), np.sin(theta)
+    Rz_mat = torch.as_tensor([[
+        [c, -s, 0, 0],
+        [s, c, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1]]], dtype=torch.float32, device=geom.device)
+    return torch3d_apply_transform_matrix(
+        geom, Rz_mat, convert_trans_col_to_row=True)
