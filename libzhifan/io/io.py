@@ -39,12 +39,12 @@ def readfile(fname, *args, **kwargs):
 
 def write_txt(obj, fname):
     with open(fname, 'w') as fp:
-        fp.writelines()
+        fp.writelines(obj)
 
 
-def write_json(obj, fname):
+def write_json(obj, fname, **kwargs):
     with open(fname, 'w') as fp:
-        json.dump(obj, fp)
+        json.dump(obj, fp, **kwargs)
 
 
 def write_pickle(obj, fname, protocol=None):
