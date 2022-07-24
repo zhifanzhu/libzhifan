@@ -54,15 +54,24 @@ class SimpleMesh(Trimesh):
         verts = numpize(_drop_dim0(verts))
         faces = numpize(_drop_dim0(faces))
 
-        super(SimpleMesh, self).__init__(
+        if isinstance(tex_color, str) and tex_color in _COLORS:
+            self.tex_color = _COLORS[tex_color]
+        elif len(tex_color) >= 3 and (0.0 <= tex_color[0] <= 1.0):
+            self.tex_color = tex_color
+        else:
+            raise ValueError(f"tex_color {tex_color} not understood.")
+
+        face_colors = np.ones([len(faces), len(self.tex_color)]) * \
+            self.tex_color * 255
+        super().__init__(
             vertices=verts,
             faces=faces,
-            process=process)
-        self.tex_color = tex_color
+            process=process,
+            face_colors=face_colors)
 
     def copy(self):
-        copied = super(SimpleMesh, self).copy()
-        return SimpleMesh(copied.vertices, copied.faces)
+        copied = super().copy()
+        return SimpleMesh(copied.vertices, copied.faces, tex_color=self.tex_color)
 
     @property
     def synced_mesh(self):
@@ -70,7 +79,7 @@ class SimpleMesh(Trimesh):
         verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
         faces = torch.as_tensor(self.faces, device=device)
         verts_rgb = torch.ones_like(verts) * \
-            torch.as_tensor(_COLORS[self.tex_color], device=device)
+            torch.as_tensor(self.tex_color[:3], device=device)
         textures = TexturesVertex(verts_features=verts_rgb[None].to(device))
         return Meshes(
             verts=[verts],
@@ -122,7 +131,7 @@ class SimpleMesh(Trimesh):
 
 #     def __init__(self, verts):
 #         verts = _drop_dim0(verts)
-#         super(SimplePCD, self).__init__(
+#         super().__init__(
 #             verts,
 #             colors=np.tile(np.array([0, 0, 0, 1]), (len(verts), 1))
 #         )
