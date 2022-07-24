@@ -19,7 +19,7 @@ def _to_trimesh(mesh_in) -> trimesh.Trimesh:
                     vertices=numpize(mesh_in.verts_packed()),
                     faces=numpize(mesh_in.faces_packed()))
     else:
-        raise ValueError("Mesh type not understood.")
+        raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
 
 
 def visualize_mesh(mesh_data,
