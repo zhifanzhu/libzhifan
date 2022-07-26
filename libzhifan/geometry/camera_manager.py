@@ -131,7 +131,7 @@ class CameraManager:
             - crop_bbox[0], - crop_bbox[1], orig_w, orig_h]
         return self.crop(local_to_global)
 
-    def resize(self, new_h, new_w):
+    def resize(self, new_h: int, new_w: int):
         scale_x = new_w / self.img_w
         scale_y = new_h / self.img_h
         fx = scale_x * self.fx
@@ -299,15 +299,13 @@ class BatchCameraManager:
         local_to_global = torch.stack([- x0, - y0, w, h], dim=1)
         return self.crop(local_to_global)
 
-    def resize(self, new_h: int, new_w: int):
+    def resize(self, new_h: torch.Tensor, new_w: torch.Tensor):
         scale_x = new_w / self.img_w
         scale_y = new_h / self.img_h
         fx = scale_x * self.fx
         fy = scale_y * self.fy
         cx = scale_x * self.cx
         cy = scale_y * self.cy
-        new_h = torch.ones_like(fx) * new_h
-        new_w = torch.ones_like(fx) * new_w
         return BatchCameraManager(
             fx=fx, fy=fy,
             cx=cx, cy=cy,
@@ -316,23 +314,5 @@ class BatchCameraManager:
         )
 
     def crop_and_resize(self, crop_bbox, output_size):
-        """
-        Crop a window (changing the center & boundary of scene),
-        and resize the output image (implicitly chaning intrinsic matrix)
-
-        Args:
-            crop_bbox: (B, 4) x0y0wh
-            output_size: tuple of (new_h, new_w) or int
-
-        Returns:
-            BatchCameraManager
-        """
-
-        if isinstance(output_size, int):
-            new_h = new_w = output_size
-        elif len(output_size) == 2:
-            new_h, new_w = output_size
-        else:
-            raise ValueError("output_size not understood.")
-
-        return self.crop(crop_bbox).resize(new_h, new_w)
+        raise NotImplementedError(
+            "Please call crop() and resize() explicitly")
