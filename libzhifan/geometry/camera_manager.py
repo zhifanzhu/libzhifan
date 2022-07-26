@@ -213,6 +213,9 @@ class BatchCameraManager:
             f"K (non-NDC) = \n {self.get_K()}"
     
     def __getitem__(self, index: int) -> CameraManager:
+        if index >= self.bsize:
+            raise IndexError(f"Trying to access index {index} "
+                             f"out of {self.bsize} cameras.")
         return CameraManager(
             fx=self.fx[index].item(), fy=self.fy[index].item(),
             cx=self.cx[index].item(), cy=self.cy[index].item(),
