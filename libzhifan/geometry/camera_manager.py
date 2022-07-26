@@ -70,10 +70,10 @@ class CameraManager:
 
     def unpack(self):
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
-    
+
     @staticmethod
     def from_nr(mat, image_size: int):
-        """ 
+        """
         Args:
             mat: (3, 3)
             image_size: H and W of neural_renderer's image
@@ -208,10 +208,26 @@ class BatchCameraManager:
         self.img_h = img_h.int().to(self.device)
         self.img_w = img_w.int().to(self.device)
 
+        self._check_shape()
+
+    def _check_shape(self):
+        assert self.fx.dim() == 1
+        assert self.fy.dim() == 1
+        assert self.cx.dim() == 1
+        assert self.cy.dim() == 1
+        assert self.img_h.dim() == 1
+        assert self.img_w.dim() == 1
+        assert self.fx.shape == \
+            self.fy.shape == \
+            self.cx.shape == \
+            self.cy.shape == \
+            self.img_h.shape == \
+            self.img_w.shape
+
     def __repr__(self):
         return f"BatchCameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
             f"K (non-NDC) = \n {self.get_K()}"
-    
+
     def __getitem__(self, index: int) -> CameraManager:
         if index >= self.bsize:
             raise IndexError(f"Trying to access index {index} "
@@ -234,10 +250,10 @@ class BatchCameraManager:
 
     def unpack(self):
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
-    
+
     @staticmethod
     def from_nr(mat, image_size: int):
-        """ 
+        """
         Args:
             mat: (B, 3, 3)
             image_size: H and W of neural_renderer's image
@@ -278,6 +294,10 @@ class BatchCameraManager:
             crop_bbox: (B, 4) x0y0wh corresponds to each camera
         """
         x0, y0, w_crop, h_crop = torch.split(crop_bbox, [1, 1, 1, 1], dim=1)
+        x0 = x0.view(-1)
+        y0 = y0.view(-1)
+        w_crop = w_crop.view(-1)
+        h_crop = h_crop.view(-1)
         crop_center_x = x0 + w_crop/2
         crop_center_y = y0 + h_crop/2
         cx_updated = self.cx + w_crop/2 - crop_center_x
@@ -297,6 +317,8 @@ class BatchCameraManager:
             crop_bbox: (B, 4)
         """
         x0, y0, _, _ = torch.split(crop_bbox, [1, 1, 1, 1], dim=1)
+        x0 = x0.view(-1)
+        y0 = y0.view(-1)
         w = torch.ones_like(x0) * orig_w
         h = torch.ones_like(x0) * orig_h
         local_to_global = torch.stack([- x0, - y0, w, h], dim=1)
