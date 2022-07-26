@@ -5,6 +5,7 @@ https://github.com/BerkeleyAutomation/perception/blob/0.0.1/perception/camera_in
 """
 
 import numpy as np
+import torch
 
 
 class CameraManager:
@@ -167,3 +168,171 @@ class CameraManager:
         return self.crop(crop_bbox).resize(new_h, new_w)
 
 
+class BatchCameraManager:
+
+    """
+    Batched implementation of CameraManager,
+    """
+
+    def __init__(self,
+                 fx: torch.Tensor,
+                 fy: torch.Tensor,
+                 cx: torch.Tensor,
+                 cy: torch.Tensor,
+                 img_h: torch.Tensor,
+                 img_w: torch.Tensor,
+                 in_ndc=False,
+                 device='cpu'):
+        """
+
+        Args:
+            fx, fy, cx, cy, img_h, img_w: torch.Tensor (B,)
+            in_ndc (bool):
+                If True, will assume {fx,fy,cx,cy} are in ndc format.
+
+        """
+        if in_ndc:
+            half_h = img_h / 2
+            half_w = img_w / 2
+            fx = fx * half_w
+            fy = fy * half_h
+            cx = half_w * (cx + 1)  # W/2 * cx + W/2
+            cy = half_h * (cy + 1)
+
+        self.bsize = len(fx)  # batch size
+        self.device = device
+        self.fx = fx.float().to(self.device)
+        self.fy = fy.float().to(self.device)
+        self.cx = cx.float().to(self.device)
+        self.cy = cy.float().to(self.device)
+        self.img_h = img_h.int().to(self.device)
+        self.img_w = img_w.int().to(self.device)
+
+    def __repr__(self):
+        return f"BatchCameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
+            f"K (non-NDC) = \n {self.get_K()}"
+    
+    def __getitem__(self, index: int) -> CameraManager:
+        return CameraManager(
+            fx=self.fx[index].item(), fy=self.fy[index].item(),
+            cx=self.cx[index].item(), cy=self.cy[index].item(),
+            img_h=self.img_h[index].item(), img_w=self.img_w[index].item(),
+            in_ndc=False)
+
+    def get_K(self):
+        """ Returns: (B, 3, 3) """
+        K = torch.zeros([self.bsize, 3, 3], dtype=torch.float32, device=self.device)
+        K[:, 0, 0] = self.fx
+        K[:, 0, 2] = self.cx
+        K[:, 1, 1] = self.fy
+        K[:, 1, 2] = self.cy
+        K[:, 2, 2] = 1.0
+        return K
+
+    def unpack(self):
+        return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
+    
+    @staticmethod
+    def from_nr(mat, image_size: int):
+        """ 
+        Args:
+            mat: (B, 3, 3)
+            image_size: H and W of neural_renderer's image
+        Returns:
+            CameraManager
+        """
+        _mat = image_size * torch.as_tensor(mat)
+        fx, fy = _mat[..., 0, 0], _mat[..., 1, 1]
+        cx, cy = _mat[..., 0, 2], _mat[..., 1, 2]
+        return BatchCameraManager(
+            fx=fx, fy=fy, cx=cx, cy=cy, img_h=image_size, img_w=image_size,
+            device=self.device
+        )
+
+    def to_ndc(self):
+        half_h, half_w = self.img_h / 2, self.img_w / 2
+        fx, fy = self.fx / half_w, self.fy / half_h
+        cx, cy = self.cx/half_w - 1, self.cy/half_h - 1
+        return fx, fy, cx, cy, self.img_h, self.img_w
+
+    def to_nr(self, return_mat=False):
+        raise NotImplementedError
+        """ Convert to neural renderer format. """
+        fx, fy = self.fx / self.img_w, self.fy / self.img_h
+        cx, cy = self.cx / self.img_w, self.cy / self.img_h
+        if return_mat:
+            return np.asarray([
+                [fx, 0, cx],
+                [0, fy, cy],
+                [0, 0, 1],
+            ])
+        else:
+            return fx, fy, cx, cy, self.img_h, self.img_w
+
+    def crop(self, crop_bbox):
+        """
+        Args:
+            crop_bbox: (B, 4) x0y0wh corresponds to each camera
+        """
+        x0, y0, w_crop, h_crop = torch.split(crop_bbox, [1, 1, 1, 1], dim=1)
+        crop_center_x = x0 + w_crop/2
+        crop_center_y = y0 + h_crop/2
+        cx_updated = self.cx + w_crop/2 - crop_center_x
+        cy_updated = self.cy + h_crop/2 - crop_center_y
+        return BatchCameraManager(
+            fx=self.fx, fy=self.fy,
+            cx=cx_updated, cy=cy_updated,
+            img_h=h_crop, img_w=w_crop,
+            in_ndc=False, device=self.device
+        )
+
+    def uncrop(self, crop_bbox: torch.Tensor, orig_h: int, orig_w: int):
+        """
+        The reverse of self.crop()
+
+        Args:
+            crop_bbox: (B, 4)
+        """
+        x0, y0, _, _ = torch.split(crop_bbox, [1, 1, 1, 1], dim=1)
+        w = torch.ones_like(x0) * orig_w
+        h = torch.ones_like(x0) * orig_h
+        local_to_global = torch.stack([- x0, - y0, w, h], dim=1)
+        return self.crop(local_to_global)
+
+    def resize(self, new_h: int, new_w: int):
+        scale_x = new_w / self.img_w
+        scale_y = new_h / self.img_h
+        fx = scale_x * self.fx
+        fy = scale_y * self.fy
+        cx = scale_x * self.cx
+        cy = scale_y * self.cy
+        new_h = torch.ones_like(fx) * new_h
+        new_w = torch.ones_like(fx) * new_w
+        return BatchCameraManager(
+            fx=fx, fy=fy,
+            cx=cx, cy=cy,
+            img_h=new_h, img_w=new_w,
+            in_ndc=False, device=self.device
+        )
+
+    def crop_and_resize(self, crop_bbox, output_size):
+        """
+        Crop a window (changing the center & boundary of scene),
+        and resize the output image (implicitly chaning intrinsic matrix)
+
+        Args:
+            crop_bbox: (B, 4) x0y0wh
+            output_size: tuple of (new_h, new_w) or int
+
+        Returns:
+            BatchCameraManager
+        """
+
+        if isinstance(output_size, int):
+            new_h = new_w = output_size
+        elif len(output_size) == 2:
+            new_h, new_w = output_size
+        else:
+            raise ValueError("output_size not understood.")
+
+        return self.crop(crop_bbox).resize(new_h, new_w)
