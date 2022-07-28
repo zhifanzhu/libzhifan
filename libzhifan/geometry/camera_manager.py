@@ -227,6 +227,9 @@ class BatchCameraManager:
     def __repr__(self):
         return f"BatchCameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
             f"K (non-NDC) = \n {self.get_K()}"
+    
+    def __len__(self) -> int:
+        return self.bsize
 
     def __getitem__(self, index: int) -> CameraManager:
         if index >= self.bsize:
