@@ -255,7 +255,7 @@ class BatchCameraManager:
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
 
     @staticmethod
-    def from_nr(mat, image_size: int):
+    def from_nr(mat, image_size: int, device: str):
         """
         Args:
             mat: (B, 3, 3)
@@ -268,7 +268,7 @@ class BatchCameraManager:
         cx, cy = _mat[..., 0, 2], _mat[..., 1, 2]
         return BatchCameraManager(
             fx=fx, fy=fy, cx=cx, cy=cy, img_h=image_size, img_w=image_size,
-            device=self.device
+            device=device
         )
 
     def to_ndc(self):
@@ -278,16 +278,17 @@ class BatchCameraManager:
         return fx, fy, cx, cy, self.img_h, self.img_w
 
     def to_nr(self, return_mat=False):
-        raise NotImplementedError
         """ Convert to neural renderer format. """
         fx, fy = self.fx / self.img_w, self.fy / self.img_h
         cx, cy = self.cx / self.img_w, self.cy / self.img_h
         if return_mat:
-            return np.asarray([
-                [fx, 0, cx],
-                [0, fy, cy],
-                [0, 0, 1],
-            ])
+            K = torch.zeros([self.bsize, 3, 3], dtype=torch.float32, device=self.device)
+            K[:, 0, 0] = fx
+            K[:, 0, 2] = cx
+            K[:, 1, 1] = fy
+            K[:, 1, 2] = cy
+            K[:, 2, 2] = 1.0
+            return K
         else:
             return fx, fy, cx, cy, self.img_h, self.img_w
 
