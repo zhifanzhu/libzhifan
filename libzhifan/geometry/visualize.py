@@ -28,6 +28,7 @@ def visualize_mesh(mesh_data,
     """
     Args:
         mesh: one of 
+            - None, which will be skipped
             - SimpleMesh
             - pytorch3d.Meshes
             - list of SimpleMeshes
@@ -46,6 +47,8 @@ def visualize_mesh(mesh_data,
 
     if isinstance(mesh_data, list):
         for m in mesh_data:
+            if m is None:
+                continue
             s.add_geometry(_to_trimesh(m))
     else:
         s.add_geometry(_to_trimesh(mesh_data))

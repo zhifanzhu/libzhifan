@@ -129,7 +129,8 @@ _T = torch.zeros(3)
 
 def _to_th_mesh(m: AnyMesh) -> Meshes:
     if isinstance(m, list):
-        return join_meshes_as_scene(list(map(_to_th_mesh, m)))
+        l = [v for v in m if v is not None]
+        return join_meshes_as_scene(list(map(_to_th_mesh, l)))
     elif isinstance(m, Meshes):
         return m
     elif isinstance(m, SimpleMesh):
