@@ -1,13 +1,12 @@
 from typing import Union, Tuple, List
 import numpy as np
 import torch
-import pytorch3d
 
 from pytorch3d.renderer import (
     PerspectiveCameras, RasterizationSettings, PointLights,
     MeshRasterizer, SoftPhongShader, MeshRenderer,
 )
-from pytorch3d.transforms import Transform3d
+from pytorch3d.renderer import BlendParams, SoftSilhouetteShader
 from pytorch3d.structures import Meshes
 from pytorch3d.structures import join_meshes_as_scene
 
@@ -192,6 +191,13 @@ def perspective_projection(mesh_data: AnyMesh,
             **method, image=image
         )
         return img
+    elif method_name == 'pytorch3d_silhouette':
+        image = torch.as_tensor(
+            image, dtype=torch.float32) / 255.
+        img = pth3d_silhouette_perspective_projection(
+            mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
+            **method, image=image)
+        return img
     elif method_name == 'neural_renderer' or method_name == 'nr':
         assert HAS_NR
         img = neural_renderer_perspective_projection(
@@ -303,7 +309,7 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
 
     R = torch.unsqueeze(torch.as_tensor(R), 0)
     T = torch.unsqueeze(torch.as_tensor(T), 0)
-    cameras = pytorch3d.renderer.PerspectiveCameras(
+    cameras = PerspectiveCameras(
         focal_length=[cam_f],
         principal_point=[cam_p],
         in_ndc=in_ndc,
@@ -334,6 +340,96 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         out = numpize(out)
     else:
         out = numpize(rendered)[..., :3]
+
+
+def pth3d_silhouette_perspective_projection(mesh_data: AnyMesh,
+                                            cam_f,
+                                            cam_p,
+                                            in_ndc: bool,
+                                            coor_sys='pytorch3d',
+                                            R=_R,
+                                            T=_T,
+                                            image=None,
+                                            **kwargs) -> np.ndarray:
+    """
+
+    Args:
+        image: (H, W, 3) torch.Tensor with values in [0, 1]
+
+        coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
+            Set the input coordinate sysem.
+            - 'pytorch3d': render using pytorch3d coordinate system,
+                i.e. X-left, Y-top, Z-in
+            - 'neural_renderer'/'nr':
+                    X-right, Y-down, Z-in.
+
+    """
+    device = 'cuda'
+    image_size = image.shape[:2]
+    _mesh_data = _to_th_mesh(mesh_data)
+    _mesh_data = _mesh_data.to(device)
+
+    if coor_sys == 'pytorch3d':
+        pass  # Nothing
+    elif coor_sys == 'neural_renderer' or coor_sys == 'nr':
+        # flip XY is the same as Rotation around Z
+        _Rz_mat = torch.as_tensor([[
+            [-1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]], dtype=torch.float32, device=device)
+        _mesh_data = coor_utils.torch3d_apply_transform_matrix(
+            _mesh_data, _Rz_mat)
+    else:
+        raise ValueError(f"coor_sys '{coor_sys}' not understood.")
+
+    R = torch.unsqueeze(torch.as_tensor(R), 0)
+    T = torch.unsqueeze(torch.as_tensor(T), 0)
+    cameras = PerspectiveCameras(
+        focal_length=[cam_f],
+        principal_point=[cam_p],
+        in_ndc=in_ndc,
+        R=R,
+        T=T,
+        image_size=[image_size],
+    )
+    # To blend the 100 faces we set a few parameters which control the opacity and the sharpness of 
+    # edges. Refer to blending.py for more details. 
+    blend_params = BlendParams(sigma=1e-9, gamma=1e-9)
+
+    # Define the settings for rasterization and shading. Here we set the output image to be of size
+    # 256x256. To form the blended image we use 100 faces for each pixel. We also set bin_size and max_faces_per_bin to None which ensure that 
+    # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for 
+    # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of 
+    # the difference between naive and coarse-to-fine rasterization. 
+    raster_settings = RasterizationSettings(
+        image_size=image_size, 
+        blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma, 
+        faces_per_pixel=1, 
+    )
+
+    # Create a silhouette mesh renderer by composing a rasterizer and a shader. 
+    silhouette_renderer = MeshRenderer(
+        rasterizer=MeshRasterizer(
+            cameras=cameras, 
+            raster_settings=raster_settings
+        ),
+        shader=SoftSilhouetteShader(blend_params=blend_params)
+    )
+    renderer = silhouette_renderer.to(device)
+
+    # raster_settings = RasterizationSettings(
+    #     image_size=image_size, blur_radius=0, faces_per_pixel=1)
+    # lights = PointLights(location=[[0, 0, 0]])
+    # rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
+    # shader = SoftPhongShader(cameras=cameras, lights=lights)
+    # renderer = MeshRenderer(
+    #     rasterizer=rasterizer, shader=shader).to(device)
+
+    rendered = renderer(_mesh_data)
+
+    # Add background image
+    out = numpize(rendered)[..., -1]
     return out
 
 
