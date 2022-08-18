@@ -340,6 +340,7 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         out = numpize(out)
     else:
         out = numpize(rendered)[..., :3]
+    return out
 
 
 def pth3d_silhouette_perspective_projection(mesh_data: AnyMesh,
