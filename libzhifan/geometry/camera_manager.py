@@ -7,6 +7,20 @@ https://github.com/BerkeleyAutomation/perception/blob/0.0.1/perception/camera_in
 import numpy as np
 import torch
 
+""" CameraManager(Fx, Fy, Cx, Cy) is the composed version of intrinsic parameters:
+
+[[Fx, 0, Cx],
+ [0, Fy, Cy],
+ [0,  0,  1]] 
+ 
+ = 
+ 
+[[f*sx, 0, ox],
+ [0, f*sy, oy],
+ [0,    0,  1]]
+
+"""
+
 
 class CameraManager:
 
@@ -70,7 +84,18 @@ class CameraManager:
 
     def unpack(self):
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
-
+    
+    def repeat(self, bsize: int, device='cpu'):
+        fx = torch.ones([bsize]) * self.fx
+        fy = torch.ones([bsize]) * self.fy
+        cx = torch.ones([bsize]) * self.cx
+        cy = torch.ones([bsize]) * self.cy
+        img_h = torch.ones([bsize]) * self.img_h
+        img_w = torch.ones([bsize]) * self.img_w
+        return BatchCameraManager(
+            fx=fx, fy=fy, cx=cx, cy=cy, img_h=img_h, img_w=img_w,
+            in_ndc=False, device=device)
+        
     @staticmethod
     def from_nr(mat, image_size: int):
         """
