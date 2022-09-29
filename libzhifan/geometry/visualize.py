@@ -22,6 +22,21 @@ def _to_trimesh(mesh_in) -> trimesh.Trimesh:
         raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
 
 
+def add_normals(mesh, normals) -> trimesh.Scene:
+    """
+    Args:
+        mesh: SimpleMesh or Trimesh
+        normals: (V, 3) same length as len(mesh.vertices)
+    Returns:
+        trimesh.Scene
+    """
+    normals = numpize(normals)
+    vec = np.column_stack(
+        (mesh.vertices, mesh.vertices + (normals * mesh.scale * .05)))
+    path = trimesh.load_path(vec.reshape(-1, 2, 3))
+    return trimesh.Scene([mesh, path])
+
+
 def visualize_mesh(mesh_data,
                    show_axis=True,
                    viewpoint='pytorch3d'):
