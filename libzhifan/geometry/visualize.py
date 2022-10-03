@@ -21,6 +21,39 @@ def _to_trimesh(mesh_in) -> trimesh.Trimesh:
     else:
         raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
 
+def color_faces(mesh, face_inds, color):
+    """
+    Args:
+        mesh: SimpleMesh or Trimesh
+        face_inds: (N,)
+        color: [R, G, B]
+    
+    Returns:
+        mesh: SimpleMesh or Trimesh
+    """
+    orig_colors = mesh.visual.face_colors
+    new_clr = list(color) + [255]
+    orig_colors[face_inds] = new_clr
+    mesh.visual.face_colors = orig_colors
+    return mesh
+
+
+def color_verts(mesh, vert_inds, color):
+    """
+    Args:
+        mesh: SimpleMesh or Trimesh
+        vert_inds: (N,)
+        color: [R, G, B]
+    
+    Returns:
+        mesh: SimpleMesh or Trimesh
+    """
+    orig_colors = mesh.visual.vertex_colors
+    new_clr = list(color) + [255]
+    orig_colors[vert_inds] = new_clr
+    mesh.visual.vertex_colors = orig_colors
+    return mesh
+
 
 def add_normals(mesh, normals) -> trimesh.Scene:
     """
