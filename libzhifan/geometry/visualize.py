@@ -2,7 +2,9 @@ import numpy as np
 from typing import Union
 import trimesh
 import torch
+from trimesh.scene import Scene
 from trimesh.transformations import rotation_matrix
+from trimesh.points import PointCloud
 from pytorch3d.structures import Meshes
 from .numeric import numpize
 
@@ -174,3 +176,29 @@ def visualize_hand_object(hand_verts=None,
         s.apply_transform(_Ry)
 
     return s
+
+
+def create_pcd_scene(points, colors=None, ret_pcd=False):
+    """
+    Args:
+        points: shape (N, 3)
+        colors: shape (N, 3), values in [0, 1]
+    
+    Returns:
+        a Scene
+        or
+        a PointCloud
+    """
+    assert len(points.shape) == 2 and points.shape[1] == 3
+    if colors is not None:
+        assert len(colors.shape) == 2 and colors.shape[1] == 3
+        alpha = np.ones([len(points)]).reshape(-1, 1)
+        colors = np.concatenate([colors, alpha], 1)
+    else:
+        colors = np.tile(np.array([0, 0, 0, 1]), (len(points), 1))
+    pcd = PointCloud(
+        vertices=points,
+        colors=colors)
+    if ret_pcd:
+        return pcd
+    return Scene([pcd])

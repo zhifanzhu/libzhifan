@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import torch
 
-from trimesh import PointCloud, Trimesh
+from trimesh import Trimesh
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer import TexturesVertex
 
@@ -121,17 +121,3 @@ class SimpleMesh(Trimesh):
         out = self.copy()
         out.apply_translation_(translation)
         return out
-
-
-# class SimplePCD(PointCloud):
-
-#     """
-#     A wrapper for PointCloud, for easier visualization.
-#     """
-
-#     def __init__(self, verts):
-#         verts = _drop_dim0(verts)
-#         super().__init__(
-#             verts,
-#             colors=np.tile(np.array([0, 0, 0, 1]), (len(verts), 1))
-#         )
