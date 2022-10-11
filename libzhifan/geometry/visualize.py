@@ -1,3 +1,4 @@
+from functools import singledispatch
 import numpy as np
 from typing import Union
 import trimesh
@@ -13,15 +14,19 @@ _Rx = rotation_matrix(np.pi, [1, 0, 0])  # rotate pi around x-axis
 _Ry = rotation_matrix(np.pi, [0, 1, 0])  # rotate pi around y-axis
 
 
+@singledispatch
 def _to_trimesh(mesh_in) -> trimesh.Trimesh:
-    if isinstance(mesh_in, trimesh.Trimesh):
-        return mesh_in
-    elif isinstance(mesh_in, Meshes):
-        return trimesh.Trimesh(
-                    vertices=numpize(mesh_in.verts_packed()),
-                    faces=numpize(mesh_in.faces_packed()))
-    else:
-        raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
+    raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
+
+@_to_trimesh.register
+def _dummy(mesh_in: trimesh.Trimesh):
+    return mesh_in
+@_to_trimesh.register
+def _dummy(mesh_in: Meshes):
+    return trimesh.Trimesh(
+            vertices=numpize(mesh_in.verts_packed()),
+            faces=numpize(mesh_in.faces_packed()))
+
 
 def color_faces(mesh, face_inds, color):
     """
@@ -29,7 +34,7 @@ def color_faces(mesh, face_inds, color):
         mesh: SimpleMesh or Trimesh
         face_inds: (N,)
         color: [R, G, B]
-    
+
     Returns:
         mesh: SimpleMesh or Trimesh
     """
@@ -46,7 +51,7 @@ def color_verts(mesh, vert_inds, color):
         mesh: SimpleMesh or Trimesh
         vert_inds: (N,)
         color: [R, G, B]
-    
+
     Returns:
         mesh: SimpleMesh or Trimesh
     """
@@ -77,15 +82,15 @@ def visualize_mesh(mesh_data,
                    viewpoint='pytorch3d'):
     """
     Args:
-        mesh: one of 
+        mesh: one of
             - None, which will be skipped
             - SimpleMesh
             - pytorch3d.Meshes
             - list of SimpleMeshes
             - list of pytorch3d.Meshes
-        viewpoint: str, one of 
+        viewpoint: str, one of
             {
-                'pytorch3d', 
+                'pytorch3d',
                 'opengl',
                 'neural_renderer'/'nr'
             }
@@ -183,7 +188,7 @@ def create_pcd_scene(points, colors=None, ret_pcd=False):
     Args:
         points: shape (N, 3)
         colors: shape (N, 3), values in [0, 1]
-    
+
     Returns:
         a Scene
         or
