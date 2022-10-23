@@ -1,7 +1,6 @@
 from .coor_utils import *
 from .example_meshes import *
 from .mesh import *
-from .numeric import nptify, numpize
 from .projection import *
 from .visualize import *
 from .visualize_2d import *

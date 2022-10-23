@@ -7,7 +7,7 @@ from trimesh import Trimesh
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer import TexturesVertex
 
-from .numeric import numpize
+from libzhifan.numeric import numpize
 
 _COLORS = dict(
     light_blue=(0.65, 0.74, 0.86),
@@ -68,6 +68,9 @@ class SimpleMesh(Trimesh):
             faces=faces,
             process=process,
             face_colors=face_colors)
+
+    def as_trimesh(self):
+        return super().copy()
 
     def copy(self):
         copied = super().copy()

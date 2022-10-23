@@ -8,7 +8,7 @@ import torch
 from pytorch3d.structures import Meshes, Pointclouds
 from pytorch3d.transforms import Transform3d
 
-from .numeric import nptify, numpize
+from libzhifan.numeric import nptify, numpize
 
 
 def nptify_wrapper(func):
@@ -144,7 +144,7 @@ def rotation_epfl(alpha, beta, gamma):
 
 
 def lift_rotation_se3(rot_mat):
-    """ 
+    """
     Life a (3, 3) rotation matrix into (4, 4) se3 transformation.
     """
     transform = nptify(rot_mat)(np.eye(4))
@@ -372,7 +372,7 @@ def points_opencv_to_opengl(pts):
     return pts
 
 
-""" Pytorch3d transforms 
+""" Pytorch3d transforms
 """
 
 
@@ -391,7 +391,7 @@ def torch3d_get_verts(geom: Union[Meshes, Pointclouds]) -> torch.Tensor:
 def torch3d_apply_transform(
         geom: Union[Meshes, Pointclouds, torch.Tensor],
         trans: Transform3d):
-    """ 
+    """
     Returns:
         tranformed geometry object.
     """
@@ -408,15 +408,15 @@ def torch3d_apply_transform_matrix(
         geom: Union[Meshes, Pointclouds, torch.Tensor],
         trans,
         convert_trans_col_to_row=True):
-    """ 
+    """
     Note: transformation is implemented as right-multiplication,
     hence geom is row-vector.
 
     Args:
-        trans: transformation. Either 
-            - matrix of (4, 4) 
+        trans: transformation. Either
+            - matrix of (4, 4)
             - matrix of (1, 4, 4)
-            - Transform3d 
+            - Transform3d
 
         convert_trans_col_to_rw: bool, i.e. transpose
 
@@ -433,7 +433,7 @@ def torch3d_apply_transform_matrix(
     else:
         trans = Transform3d(
             matrix=trans, device=geom.device)
-    
+
     return torch3d_apply_transform(geom, trans)
 
 

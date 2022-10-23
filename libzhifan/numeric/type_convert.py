@@ -4,8 +4,11 @@ import numpy as np
 import torch
 
 
+NDType = Union[torch.Tensor, np.ndarray]
+
+
 @singledispatch
-def nptify(x) -> Callable:
+def nptify(x: np.ndarray) -> Callable:
     """ Num-Py-Torch-i-FYing
     Make a type convertor based on the type of x
 
@@ -18,24 +21,16 @@ def nptify(x) -> Callable:
     Returns:
         A Callable that converts its input to x's type
     """
-    raise NotImplementedError
-
+    return lambda a: np.asarray(a)
 @nptify.register
 def _nptify(x: torch.Tensor):
     return lambda a: torch.as_tensor(a, dtype=x.dtype, device=x.device)
-@nptify.register
-def _nptify(x: np.ndarray):
-    return lambda a: np.asarray(a)
 
 
 @singledispatch
-def numpize(tensor: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
-    raise NotImplementedError
-
+def numpize(tensor: np.ndarray) -> np.ndarray:
+    return tensor
 @numpize.register
 def _numpize(tensor: torch.Tensor):
-    return tensor.detach().squeeze().cpu().numpy()
-@numpize.register
-def _numpize(tensor: np.ndarray):
-    return tensor
+    return tensor.detach().cpu().numpy()
 
