@@ -11,10 +11,11 @@ from pytorch3d.structures import Meshes
 from pytorch3d.structures import join_meshes_as_scene
 
 from . import coor_utils
-from .numeric import numpize
 from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
 from .camera_manager import CameraManager
+
+from libzhifan.numeric import numpize
 
 try:
     import neural_renderer as nr
@@ -337,9 +338,9 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         mask = is_bg[..., None].repeat(1, 1, 1, 3)
         out = dst.masked_scatter(
             mask, image[None][mask])
-        out = numpize(out)
+        out = numpize(out.squeeze_(0))
     else:
-        out = numpize(rendered)[..., :3]
+        out = numpize(rendered.squeeze_(0))[..., :3]
     return out
 
 
@@ -394,25 +395,25 @@ def pth3d_silhouette_perspective_projection(mesh_data: AnyMesh,
         T=T,
         image_size=[image_size],
     )
-    # To blend the 100 faces we set a few parameters which control the opacity and the sharpness of 
-    # edges. Refer to blending.py for more details. 
+    # To blend the 100 faces we set a few parameters which control the opacity and the sharpness of
+    # edges. Refer to blending.py for more details.
     blend_params = BlendParams(sigma=1e-9, gamma=1e-9)
 
     # Define the settings for rasterization and shading. Here we set the output image to be of size
-    # 256x256. To form the blended image we use 100 faces for each pixel. We also set bin_size and max_faces_per_bin to None which ensure that 
-    # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for 
-    # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of 
-    # the difference between naive and coarse-to-fine rasterization. 
+    # 256x256. To form the blended image we use 100 faces for each pixel. We also set bin_size and max_faces_per_bin to None which ensure that
+    # the faster coarse-to-fine rasterization method is used. Refer to rasterize_meshes.py for
+    # explanations of these parameters. Refer to docs/notes/renderer.md for an explanation of
+    # the difference between naive and coarse-to-fine rasterization.
     raster_settings = RasterizationSettings(
-        image_size=image_size, 
-        blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma, 
-        faces_per_pixel=1, 
+        image_size=image_size,
+        blur_radius=np.log(1. / 1e-4 - 1.) * blend_params.sigma,
+        faces_per_pixel=1,
     )
 
-    # Create a silhouette mesh renderer by composing a rasterizer and a shader. 
+    # Create a silhouette mesh renderer by composing a rasterizer and a shader.
     silhouette_renderer = MeshRenderer(
         rasterizer=MeshRasterizer(
-            cameras=cameras, 
+            cameras=cameras,
             raster_settings=raster_settings
         ),
         shader=SoftSilhouetteShader(blend_params=blend_params)
@@ -430,7 +431,7 @@ def pth3d_silhouette_perspective_projection(mesh_data: AnyMesh,
     rendered = renderer(_mesh_data)
 
     # Add background image
-    out = numpize(rendered)[..., -1]
+    out = numpize(rendered.squeeze())[..., -1]
     return out
 
 
@@ -500,9 +501,9 @@ def project_standardized(mesh_data: AnyMesh,
                              in_ndc=False,
                              coor_sys='nr'
                          )) -> np.ndarray:
-    """ 
+    """
     Given any mesh(es), this function renders the zoom-in images.
-    The meshes are proecessed to be in [-0.5, 0.5]^3 space, 
+    The meshes are proecessed to be in [-0.5, 0.5]^3 space,
     then a weak-perspective camera is applied.
 
     Args:
@@ -542,11 +543,11 @@ def project_standardized(mesh_data: AnyMesh,
 
     fx = fy = 2*large_z / (1+pad)
     camera = CameraManager(
-        fx=fx, fy=fy, 
+        fx=fx, fy=fy,
         cx=0, cy=0, img_h=image_size, img_w=image_size,
         in_ndc=True,
     )
     return perspective_projection_by_camera(
-        _mesh_data, 
-        camera, 
+        _mesh_data,
+        camera,
         method=method)

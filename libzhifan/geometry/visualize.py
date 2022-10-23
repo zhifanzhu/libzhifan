@@ -7,7 +7,7 @@ from trimesh.scene import Scene
 from trimesh.transformations import rotation_matrix
 from trimesh.points import PointCloud
 from pytorch3d.structures import Meshes
-from .numeric import numpize
+from libzhifan.numeric import numpize
 
 
 _Rx = rotation_matrix(np.pi, [1, 0, 0])  # rotate pi around x-axis
@@ -15,11 +15,7 @@ _Ry = rotation_matrix(np.pi, [0, 1, 0])  # rotate pi around y-axis
 
 
 @singledispatch
-def _to_trimesh(mesh_in) -> trimesh.Trimesh:
-    raise ValueError(f"Mesh type {type(mesh_in)} not understood.")
-
-@_to_trimesh.register
-def _dummy(mesh_in: trimesh.Trimesh):
+def _to_trimesh(mesh_in: trimesh.Trimesh) -> trimesh.Trimesh:
     return mesh_in
 @_to_trimesh.register
 def _dummy(mesh_in: Meshes):
@@ -70,7 +66,7 @@ def add_normals(mesh, normals) -> trimesh.Scene:
     Returns:
         trimesh.Scene
     """
-    normals = numpize(normals)
+    normals = numpize(normals.squeeze())
     vec = np.column_stack(
         (mesh.vertices, mesh.vertices + (normals * mesh.scale * .05)))
     path = trimesh.load_path(vec.reshape(-1, 2, 3))
@@ -125,6 +121,19 @@ def visualize_mesh(mesh_data,
         raise ValueError
 
     return s
+
+
+def visualize_mesh_with_point(mesh: trimesh.Trimesh,
+                              point,
+                              radius=0.01,
+                              **kwargs) -> trimesh.Scene:
+    """
+    Args:
+        point: (x, y, z)
+    """
+    point = numpize(point.squeeze())
+    ball = create_spheres(points=point[None], radius=radius)
+    return visualize_mesh([mesh, ball], **kwargs)
 
 
 def visualize_hand_object(hand_verts=None,
@@ -184,7 +193,8 @@ def visualize_hand_object(hand_verts=None,
 
 
 def create_pcd_scene(points, colors=None, ret_pcd=False):
-    """
+    """ See also create_spheres()
+
     Args:
         points: shape (N, 3)
         colors: shape (N, 3), values in [0, 1]
@@ -207,3 +217,29 @@ def create_pcd_scene(points, colors=None, ret_pcd=False):
     if ret_pcd:
         return pcd
     return Scene([pcd])
+
+
+def create_spheres(points,
+                   colors=None,
+                   radius=0.01,
+                   subdivisions=0
+                   ) -> trimesh.Trimesh:
+    """
+    Args:
+        points: (N, 3)
+        colors: (N, 3) in [0, 255]
+        subvisions: 0 for speed, 3 for quality
+    """
+    spheres = []
+    if colors is None:
+        colors = np.tile(np.array([255, 0, 0, 255]), (len(points), 1))
+    else:
+        colors = np.hstack([
+            np.asarray(colors), np.ones([len(points), 1]) * 255])
+    for i, p in enumerate(points):
+        s = trimesh.primitives.Sphere(
+            radius=radius, center=p, subdivisions=subdivisions)
+        s.visual.vertex_colors = colors[i]#  + [255]
+        spheres.append(s)
+    mesh = trimesh.util.concatenate(spheres)
+    return mesh
