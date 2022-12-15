@@ -37,7 +37,9 @@ def readfile(fname, *args, **kwargs):
         return read_pickle(fname, *args, **kwargs)
 
 
-def write_txt(obj, fname):
+def write_txt(obj, fname, append_newline=True):
+    if append_newline:
+        obj = [v+'\n' for v in obj]
     with open(fname, 'w') as fp:
         fp.writelines(obj)
 
