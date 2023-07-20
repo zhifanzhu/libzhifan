@@ -279,6 +279,10 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
 
     Args:
         image: (H, W, 3) torch.Tensor with values in [0, 1]
+        cam_f: Tuple, (2,)
+        cam_p: Tuple, (2,)
+        R: (3, 3)
+        T: (3,)
 
         coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
             Set the input coordinate sysem.
@@ -287,7 +291,8 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
             - 'neural_renderer'/'nr':
                     X-right, Y-down, Z-in.
 
-        flip_canvas_xy: see flip issue
+        flip_canvas_xy: see flip issue. Note the issue doesn't happen
+            if coor_sys == 'nr'
     """
     device = 'cuda'
     image_size = image.shape[:2]

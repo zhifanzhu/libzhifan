@@ -12,6 +12,8 @@ from libzhifan.numeric import numpize
 _COLORS = dict(
     light_blue=(0.65, 0.74, 0.86),
     yellow=(.85, .85, 0),
+    grey=(0.8, 0.8, 0.8),
+    red=(1.0, 0, 0),
 )
 
 

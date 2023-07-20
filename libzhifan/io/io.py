@@ -44,9 +44,9 @@ def write_txt(obj, fname, append_newline=True):
         fp.writelines(obj)
 
 
-def write_json(obj, fname, **kwargs):
+def write_json(obj, fname, indent=2, **kwargs):
     with open(fname, 'w') as fp:
-        json.dump(obj, fp, **kwargs)
+        json.dump(obj, fp, indent=indent, **kwargs)
 
 
 def write_pickle(obj, fname, protocol=None):
