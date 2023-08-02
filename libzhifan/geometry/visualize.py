@@ -243,3 +243,35 @@ def create_spheres(points,
         spheres.append(s)
     mesh = trimesh.util.concatenate(spheres)
     return mesh
+
+
+def create_path_cone(p1: np.ndarray,
+                     p2: np.ndarray) -> trimesh.Trimesh:
+    """
+    Args:
+        p1: (3,)
+        p2: (3,)
+    Return:
+        A Trimesh Cone pointing from p1 to p2
+    """
+    p1 = np.asarray(p1)
+    p2 = np.asarray(p2)
+    p12 = p2 - p1
+    length = np.linalg.norm(p12)
+    radius = 0.05 * length
+    cone = trimesh.creation.cone(radius=radius, height=length)
+    z_axis = p12 / length
+    up_axis = np.float32([0, 0, 1.0])
+    if (1.0 - z_axis.dot(up_axis)) < 1e3:  # if z_axis is too close to up_axis
+        y_axis = np.cross(z_axis, np.float32([1, 0, 0]))
+        x_axis = np.cross(y_axis, z_axis)
+    else:
+        y_axis = np.cross(z_axis, up_axis)
+        x_axis = np.cross(z_axis, y_axis)
+    transform = np.eye(4)
+    transform[:3, 0] = x_axis
+    transform[:3, 1] = y_axis
+    transform[:3, 2] = z_axis
+    transform[:3, 3] = p1
+    cone.apply_transform(transform)
+    return cone
