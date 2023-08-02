@@ -8,6 +8,7 @@ from trimesh.transformations import rotation_matrix
 from trimesh.points import PointCloud
 from pytorch3d.structures import Meshes
 from libzhifan.numeric import numpize
+from libzhifan.geometry import SimpleMesh
 
 
 _Rx = rotation_matrix(np.pi, [1, 0, 0])  # rotate pi around x-axis
@@ -22,6 +23,13 @@ def _dummy(mesh_in: Meshes):
     return trimesh.Trimesh(
             vertices=numpize(mesh_in.verts_packed()),
             faces=numpize(mesh_in.faces_packed()))
+@_to_trimesh.register
+def _dummy(mesh_in: SimpleMesh):
+    m = trimesh.Trimesh(
+            vertices=mesh_in.vertices,
+            faces=mesh_in.faces)
+    m.visual = mesh_in.visual
+    return m
 
 
 def color_faces(mesh, face_inds, color):
