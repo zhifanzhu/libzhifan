@@ -14,7 +14,7 @@ setup(
         'matplotlib>=2.1.0',
         'pillow>=6.0.0',
         'trimesh>=3.10.2',
-        'pytorch3d==0.6.2',
+        # 'pytorch3d==0.6.2', suggested
     ],
     version='0.1',
 )
