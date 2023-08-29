@@ -1,10 +1,12 @@
 from typing import Union, Tuple, List
 import numpy as np
+import trimesh
 import torch
 
 from pytorch3d.renderer import (
     PerspectiveCameras, RasterizationSettings, PointLights,
     MeshRasterizer, SoftPhongShader, MeshRenderer,
+    TexturesVertex
 )
 from pytorch3d.renderer import BlendParams, SoftSilhouetteShader
 from pytorch3d.structures import Meshes
@@ -505,7 +507,11 @@ def project_standardized(mesh_data: AnyMesh,
                              name='pytorch3d',
                              in_ndc=False,
                              coor_sys='nr'
-                         )) -> np.ndarray:
+                         ),
+                         centering=True,
+                         manual_dmax : float = None,
+                         show_axis=False,
+                         print_dmax=False) -> np.ndarray:
     """
     Given any mesh(es), this function renders the zoom-in images.
     The meshes are proecessed to be in [-0.5, 0.5]^3 space,
@@ -513,6 +519,9 @@ def project_standardized(mesh_data: AnyMesh,
 
     Args:
         pad: the fraction to be padded around rendered image.
+        manual_dmax: set dmax manually
+        print_dmax: This helps determine manual_dmax
+        centering: if True, look at (xc, yc, zc); otherwise, look at (0, 0, 0)
 
     Returns:
         (H, W, 3)
@@ -522,11 +531,31 @@ def project_standardized(mesh_data: AnyMesh,
     xmax, ymax, zmax = torch.max(_mesh_data.verts_packed(), 0).values
     xc, yc, zc = map(lambda x: x/2, (xmin+xmax, ymin+ymax, zmin+zmax))
     dx, dy, dz = xmax-xmin, ymax-ymin, zmax-zmin
-    dmax = max(dx, max(dy, dz))
+    dmax = max(dx, max(dy, dz)).item()
+    if manual_dmax is not None:
+        dmax = manual_dmax
+    if print_dmax:
+        print(f"dmax = {dmax}")
+
+    if show_axis:
+        device = _mesh_data.device
+        _axis = trimesh.creation.axis(origin_size=0.01, axis_radius=0.004, axis_length=dmax * 0.6)
+
+        _ax_verts = torch.as_tensor(_axis.vertices, device=device, dtype=torch.float32)
+        _ax_faces = torch.as_tensor(_axis.faces, device=device)
+        _ax_verts_rgb = torch.as_tensor(_axis.visual.vertex_colors[:, :3], device=device)
+        _ax_verts_rgb = _ax_verts_rgb / 255.
+        textures = TexturesVertex(verts_features=_ax_verts_rgb[None].to(device))
+        _axis = Meshes(
+            verts=[_ax_verts],
+            faces=[_ax_faces],
+            textures=textures)
+        _mesh_data = _to_th_mesh([_mesh_data, _axis])
 
     large_z = 20  # can be arbitrary large value >> 1
-    _mesh_data = coor_utils.torch3d_apply_translation(
-        _mesh_data, (-xc, -yc, -zc))
+    if centering:
+        _mesh_data = coor_utils.torch3d_apply_translation(
+            _mesh_data, (-xc, -yc, -zc))
     _mesh_data = coor_utils.torch3d_apply_scale(_mesh_data, 1./dmax)
     if direction == '+z':
         pass  # Nothing need to be changed

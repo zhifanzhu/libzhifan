@@ -36,7 +36,7 @@ def check_shape(tensor, shape, name=""):
             )
 
 
-def check_shape_equal(tensor, other):
+def check_shape_like(tensor, other):
     """
     Args:
         tensor ([torch.Tensor,np.ndarray]): array to verify
