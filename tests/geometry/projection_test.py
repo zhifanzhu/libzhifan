@@ -1,20 +1,23 @@
 import unittest
 
+import os
 import numpy as np
 import torch
 
 from pytorch3d.renderer import (
     PerspectiveCameras, RasterizationSettings, PointLights,
+    AmbientLights,
     MeshRasterizer, SoftPhongShader, MeshRenderer,
     TexturesUV,
 )
 from pytorch3d.structures import Meshes
 from pytorch3d.renderer import TexturesVertex
+from pytorch3d.structures import join_meshes_as_scene
 
 from libzhifan import epylab
 from libzhifan.geometry import example_meshes
 from libzhifan.geometry import projection
-from libzhifan.geometry import SimpleMesh
+from libzhifan.geometry import SimpleMesh, InstanceIDRenderer
 
 
 class Shapes:
@@ -42,7 +45,7 @@ class Shapes:
             convention='opengl',
             return_mesh=True,
         )
-    
+
     @property
     def cube3(self):
         """ Middle """
@@ -52,7 +55,7 @@ class Shapes:
             convention='opencv',
             return_mesh=True
         )
-    
+
 
 _shapes = Shapes()
 
@@ -132,7 +135,7 @@ class TestNeuralRendererProjection(unittest.TestCase):
 
 
 def visualize_cube_with_unit_camera():
-    """ 
+    """
     Note:
     In pytorch3d, `in_ndc=False` means the units are defined in screen space,
     which means the units are pixels;
@@ -141,12 +144,13 @@ def visualize_cube_with_unit_camera():
     """
     IN_NDC = True  # Setting in_ndc=True is very important
     image_size = (200, 200)
-    verts, faces = example_meshes.canonical_cuboids(
+    mesh = example_meshes.canonical_cuboids(
         x=0, y=0, z=3,
         w=2, h=2, d=2,
         convention='opencv'
     )
-    verts, faces = map(torch.from_numpy, (verts, faces))
+    verts, faces = map(torch.from_numpy, (mesh.vertices, mesh.faces))
+    verts = verts.float()
 
     device = 'cuda'
     # R, T = pytorch3d.renderer.look_at_view_transform(-1, 0, 0)
@@ -161,9 +165,9 @@ def visualize_cube_with_unit_camera():
 
     # Equivalently 1:
     # TODO: why their full_projection_matrix differs?
-    # cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=90 ,R=R, T=T)  
+    # cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=90 ,R=R, T=T)
 
-    
+
     # Equivalently 2:
     # for K, fx=fy=cx=cy= W/2
 
@@ -189,9 +193,55 @@ def visualize_cube_with_unit_camera():
     images = renderer(cube)
 
     epylab.eimshow(images[0, :, :,  :])
+    outfile = './tests/outputs/visualize_cube_with_unit_camera.png'
+    os.makedirs(os.path.dirname(outfile), exist_ok=True)
+    epylab.savefig(outfile)
 
-    
+
+def render_instance_id_test():
+    """
+    Note:
+    In pytorch3d, `in_ndc=False` means the units are defined in screen space,
+    which means the units are pixels;
+    However, we normally define the units in world coordinates,
+    which hardly can have pixels units, therefore `in_ndc` should be set to True.
+    """
+    device = 'cuda'
+    IN_NDC = True  # Setting in_ndc=True is very important
+    image_size = (200, 200)
+    def canonical_cuboids_pytorch3d_mesh(x, y, z, w, h, d, device):
+        mesh = example_meshes.canonical_cuboids(x, y, z, w, h, d,
+            convention='opencv')
+        cube = mesh.synced_mesh.to(device)
+        return cube
+
+    cube1 = canonical_cuboids_pytorch3d_mesh(
+        x=0, y=0, z=3,
+        w=2, h=2, d=2, device=device)
+    cube2 = canonical_cuboids_pytorch3d_mesh(
+        x=2, y=0, z=4,
+        w=2, h=2, d=2, device=device)
+
+    # R, T = pytorch3d.renderer.look_at_view_transform(-1, 0, 0)
+    cameras = PerspectiveCameras(
+        focal_length=[(1, 1)],
+        principal_point=[(0, 0)],
+        in_ndc=IN_NDC,
+        # R=R, T=T,
+        image_size=[image_size],
+    )
+
+    renderer = InstanceIDRenderer(cameras=cameras, image_size=image_size).to(device)
+    images = renderer([cube1, cube2])
+
+    epylab.eimshow(images)
+    epylab.colorbar()
+    outfile = './tests/outputs/render_instance_id.png'
+    os.makedirs(os.path.dirname(outfile), exist_ok=True)
+    epylab.savefig(outfile)
+
 
 if __name__ == '__main__':
-    unittest.main()
     visualize_cube_with_unit_camera()
+    render_instance_id_test()
+    unittest.main()

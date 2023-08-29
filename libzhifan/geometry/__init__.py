@@ -5,3 +5,4 @@ from .projection import *
 from .visualize import *
 from .visualize_2d import *
 from .camera_manager import *
+from .instance_id_rendering import InstanceIDRenderer

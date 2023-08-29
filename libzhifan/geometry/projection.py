@@ -16,6 +16,7 @@ from . import coor_utils
 from .mesh import SimpleMesh
 from .visualize_2d import draw_dots_image
 from .camera_manager import CameraManager
+from .instance_id_rendering import InstanceIDRenderer
 
 from libzhifan.numeric import numpize
 
@@ -161,7 +162,7 @@ def perspective_projection(mesh_data: AnyMesh,
         cam_f: focal length (2,)
         cam_p: principal points (2,)
         method: dict
-            - name: one of {'naive', 'pytorch3d', 'neural_renderer'}.
+            - name: one of {'naive', 'pytorch3d', 'pytorch3d_instance', 'neural_renderer'}.
 
             Other fields contains the parameters of that function
 
@@ -200,6 +201,12 @@ def perspective_projection(mesh_data: AnyMesh,
         img = pth3d_silhouette_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
             **method, image=image)
+        return img
+    elif method_name == 'pytorch3d_instance':
+        blur_radius = method.pop('blur_radius', 1e-7)
+        img = pth3d_instance_perspective_projection(
+            meshes=mesh_data, cam_f=cam_f, cam_p=cam_p,
+            **method, img_h=img_h, img_w=img_w, blur_radius=blur_radius)
         return img
     elif method_name == 'neural_renderer' or method_name == 'nr':
         assert HAS_NR
@@ -439,6 +446,69 @@ def pth3d_silhouette_perspective_projection(mesh_data: AnyMesh,
 
     # Add background image
     out = numpize(rendered.squeeze())[..., -1]
+    return out
+
+
+def pth3d_instance_perspective_projection(meshes: List[Meshes],
+                                          cam_f,
+                                          cam_p,
+                                          in_ndc: bool,
+                                          img_h,
+                                          img_w,
+                                          coor_sys='pytorch3d',
+                                          R=_R,
+                                          T=_T,
+                                          **kwargs) -> np.ndarray:
+    """ Instance ID
+
+    Args:
+        image: (H, W, 3) torch.Tensor with values in [0, 1]
+
+        coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
+            Set the input coordinate sysem.
+            - 'pytorch3d': render using pytorch3d coordinate system,
+                i.e. X-left, Y-top, Z-in
+            - 'neural_renderer'/'nr':
+                    X-right, Y-down, Z-in.
+
+    Returns:
+        instance_id_mask: (H, W) int32
+    """
+    device = 'cuda'
+    image_size = (img_h, img_w)
+    assert type(meshes) == list, "Must be list of meshes"
+    meshes = [_to_th_mesh(v).to(device) for v in meshes]
+
+    if coor_sys == 'pytorch3d':
+        pass  # Nothing
+    elif coor_sys == 'neural_renderer' or coor_sys == 'nr':
+        # flip XY is the same as Rotation around Z
+        _Rz_mat = torch.as_tensor([[
+            [-1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]], dtype=torch.float32, device=device)
+        meshes = [
+            coor_utils.torch3d_apply_transform_matrix(v,_Rz_mat)
+            for v in meshes]
+    else:
+        raise ValueError(f"coor_sys '{coor_sys}' not understood.")
+
+    R = torch.unsqueeze(torch.as_tensor(R), 0)
+    T = torch.unsqueeze(torch.as_tensor(T), 0)
+    cameras = PerspectiveCameras(
+        focal_length=[cam_f],
+        principal_point=[cam_p],
+        in_ndc=in_ndc,
+        R=R,
+        T=T,
+        image_size=[image_size],
+    )
+    blur_radius = kwargs.pop('blur_radius', 1e-7)
+    renderer = InstanceIDRenderer(cameras=cameras, image_size=image_size, blur_radius=blur_radius).to(device)
+    rendered = renderer(meshes)
+
+    out = numpize(rendered)
     return out
 
 
