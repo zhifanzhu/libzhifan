@@ -1,6 +1,6 @@
 def quick_inspect(v: object, indent=0, max_indent=-1):
     """ Recursively printing python object types """
-    if max_indent > 0 and indent >= max_indent:
+    if max_indent >= 0 and indent >= max_indent:
         return
     if hasattr(v, 'shape'):
         print('\t'*indent, type(v).__name__, v.shape)
