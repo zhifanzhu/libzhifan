@@ -8,10 +8,10 @@ def quick_inspect(v: object, indent=0, max_indent=-1):
         print('\t'*indent, 'list len=', len(v))
         for vv in v:
             if hasattr(vv, '__len__'):
-                quick_inspect(vv, indent+1)
+                quick_inspect(vv, indent+1, max_indent=max_indent)
     elif isinstance(v, dict):
         for k, vv in v.items():
             print('\t'*indent, k)
-            quick_inspect(vv, indent+1)
+            quick_inspect(vv, indent+1, max_indent=max_indent)
     else:
         print('\t'*indent, type(v))
