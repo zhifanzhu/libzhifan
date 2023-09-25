@@ -210,7 +210,7 @@ def visualize_rotation_distribution(rot_mats,
         rot_mats: (N, 3, 3)
     """
     axs = []
-    for rot_mat in T_o2l_avgs:
+    for rot_mat in rot_mats:
         T = np.eye(4)
         T[:3, :3] = rot_mat.cpu().numpy()
         z_vec = rot_mat[:3, -1]
