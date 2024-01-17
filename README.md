@@ -1,5 +1,7 @@
 # LibZhifan
 
+# Doc
+
 Utility tools.
 
 modules:
@@ -8,3 +10,7 @@ modules:
 - *epylab*: matplotlib extension
 - *geometry*: 3D geometries, camera projections, mesh visualization. Requires pytorch3d
 - *numeric*: Utilities for numeric libraries (numpy, pytorch)
+
+# Install
+
+`pip install git+https://github.com/zhifanzhu/libzhifan.git`
