@@ -1,24 +1,20 @@
-from typing import Union, Tuple, List
-import numpy as np
-import trimesh
-import torch
+from typing import List, Tuple, Union
 
-from pytorch3d.renderer import (
-    PerspectiveCameras, RasterizationSettings, PointLights,
-    MeshRasterizer, SoftPhongShader, MeshRenderer,
-    TexturesVertex
-)
-from pytorch3d.renderer import BlendParams, SoftSilhouetteShader
-from pytorch3d.structures import Meshes
-from pytorch3d.structures import join_meshes_as_scene
+import numpy as np
+import torch
+import trimesh
+from libzhifan.numeric import numpize
+from pytorch3d.renderer import (BlendParams, MeshRasterizer, MeshRenderer,
+                                PerspectiveCameras, PointLights,
+                                RasterizationSettings, SoftPhongShader,
+                                SoftSilhouetteShader, TexturesVertex)
+from pytorch3d.structures import Meshes, join_meshes_as_scene
 
 from . import coor_utils
-from .mesh import SimpleMesh
-from .visualize_2d import draw_dots_image
 from .camera_manager import CameraManager
 from .instance_id_rendering import InstanceIDRenderer
-
-from libzhifan.numeric import numpize
+from .mesh import SimpleMesh
+from .visualize_2d import draw_dots_image
 
 try:
     import neural_renderer as nr
@@ -151,7 +147,8 @@ def perspective_projection(mesh_data: AnyMesh,
                            image=None,
                            img_h=None,
                            img_w=None,
-                           device='cuda') -> np.ndarray:
+                           device='cuda',
+                           **kwargs) -> np.ndarray:
     """ Project verts/mesh by Perspective camera.
 
     Args:
@@ -193,7 +190,7 @@ def perspective_projection(mesh_data: AnyMesh,
             image, dtype=torch.float32) / 255.
         img = pytorch3d_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
-            **method, image=image, device=device,
+            **method, image=image, device=device, **kwargs
         )
         return img
     elif method_name == 'pytorch3d_silhouette':
@@ -227,7 +224,8 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
                                          in_ndc=False,
                                      ),
                                      image=None,
-                                     device='cuda') -> np.ndarray:
+                                     device='cuda',
+                                     **kwargs) -> np.ndarray:
     """
     Similar to perspective_projection() but with CameraManager as argument.
     """
@@ -242,6 +240,7 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
         img_h=int(img_h),
         img_w=int(img_w),
         device=device,
+        **kwargs,
     )
     return img
 
@@ -295,7 +294,7 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         cam_f: Tuple, (2,)
         cam_p: Tuple, (2,)
         R: (3, 3)
-        T: (3,)
+        pT: (3,)
 
         coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
             Set the input coordinate sysem.
@@ -336,9 +335,10 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         image_size=[image_size],
     )
 
-    blend_params = BlendParams(sigma=1e-9, gamma=1e-9)
+    blend_params = kwargs.pop('blend_params', BlendParams())
     raster_settings = RasterizationSettings(
-        image_size=image_size, blur_radius=0, faces_per_pixel=1)
+        image_size=image_size, blur_radius=0, faces_per_pixel=1,
+        bin_size=kwargs.get('bin_size', None))
     lights = PointLights(location=[[0, 0, 0]])
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
     shader = SoftPhongShader(
@@ -463,6 +463,7 @@ def pth3d_instance_perspective_projection(meshes: List[Meshes],
                                           coor_sys='pytorch3d',
                                           R=_R,
                                           T=_T,
+                                          device='cuda',
                                           **kwargs) -> np.ndarray:
     """ Instance ID
 
@@ -479,7 +480,6 @@ def pth3d_instance_perspective_projection(meshes: List[Meshes],
     Returns:
         instance_id_mask: (H, W) int32
     """
-    device = 'cuda'
     image_size = (img_h, img_w)
     assert type(meshes) == list, "Must be list of meshes"
     meshes = [_to_th_mesh(v).to(device) for v in meshes]
@@ -524,6 +524,7 @@ def neural_renderer_perspective_projection(mesh_data: SimpleMesh,
                                            T=_T,
                                            image=None,
                                            orig_size=None,
+                                           device='cuda',
                                            **kwargs):
     """
     TODO(low priority): add image support, add texture render support.
@@ -534,7 +535,6 @@ def neural_renderer_perspective_projection(mesh_data: SimpleMesh,
             It's recommended to keep it as None.
             See above "3." for explanation.
     """
-    device = 'cuda'
     if isinstance(mesh_data, list):
         raise NotImplementedError
     elif isinstance(mesh_data, Meshes):
@@ -587,7 +587,8 @@ def project_standardized(mesh_data: AnyMesh,
                          manual_dmax : float = None,
                          show_axis=False,
                          print_dmax=False,
-                         device='cuda') -> np.ndarray:
+                         device='cuda',
+                         **kwargs) -> np.ndarray:
     """
     Given any mesh(es), this function renders the zoom-in images.
     The meshes are proecessed to be in [-0.5, 0.5]^3 space,
@@ -598,6 +599,7 @@ def project_standardized(mesh_data: AnyMesh,
         manual_dmax: set dmax manually
         print_dmax: This helps determine manual_dmax
         centering: if True, look at (xc, yc, zc); otherwise, look at (0, 0, 0)
+        **kwargs: other kwargs passed to projection function
 
     Returns:
         (H, W, 3)
@@ -661,4 +663,5 @@ def project_standardized(mesh_data: AnyMesh,
         _mesh_data,
         camera,
         method=method,
-        device=device)
+        device=device,
+        **kwargs)

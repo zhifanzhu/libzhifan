@@ -201,7 +201,7 @@ def visualize_hand_object(hand_verts=None,
 
 
 def visualize_rotation_distribution(rot_mats,
-                                    origin_size=0.05,
+                                    origin_size=0.005,
                                     axis_radius=0.004,
                                     axis_length=0.05) -> trimesh.Scene:
     """ Place rotations on a unit sphere
@@ -215,7 +215,7 @@ def visualize_rotation_distribution(rot_mats,
         T[:3, :3] = rot_mat.cpu().numpy()
         z_vec = rot_mat[:3, -1]
         z_vec = z_vec / np.linalg.norm(z_vec)
-        T[:3, -1] = - z_vec
+        T[:3, -1] = z_vec
         ax = trimesh.creation.axis(
             transform=T, origin_size=origin_size,
             axis_radius=axis_radius, axis_length=axis_length)
