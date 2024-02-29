@@ -150,7 +150,8 @@ def perspective_projection(mesh_data: AnyMesh,
                                ),
                            image=None,
                            img_h=None,
-                           img_w=None) -> np.ndarray:
+                           img_w=None,
+                           device='cuda') -> np.ndarray:
     """ Project verts/mesh by Perspective camera.
 
     Args:
@@ -192,7 +193,7 @@ def perspective_projection(mesh_data: AnyMesh,
             image, dtype=torch.float32) / 255.
         img = pytorch3d_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
-            **method, image=image
+            **method, image=image, device=device,
         )
         return img
     elif method_name == 'pytorch3d_silhouette':
@@ -225,7 +226,8 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
                                          name='pytorch3d',
                                          in_ndc=False,
                                      ),
-                                     image=None) -> np.ndarray:
+                                     image=None,
+                                     device='cuda') -> np.ndarray:
     """
     Similar to perspective_projection() but with CameraManager as argument.
     """
@@ -239,6 +241,7 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
         image=image,
         img_h=int(img_h),
         img_w=int(img_w),
+        device=device,
     )
     return img
 
@@ -281,6 +284,7 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
                                      T=_T,
                                      image=None,
                                      flip_canvas_xy=False,
+                                     device='cuda',
                                      **kwargs) -> np.ndarray:
     """
     TODO
@@ -303,7 +307,6 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         flip_canvas_xy: see flip issue. Note the issue doesn't happen
             if coor_sys == 'nr'
     """
-    device = 'cuda'
     image_size = image.shape[:2]
     _mesh_data = _to_th_mesh(mesh_data)
     _mesh_data = _mesh_data.to(device)
@@ -333,11 +336,13 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         image_size=[image_size],
     )
 
+    blend_params = BlendParams(sigma=1e-9, gamma=1e-9)
     raster_settings = RasterizationSettings(
         image_size=image_size, blur_radius=0, faces_per_pixel=1)
     lights = PointLights(location=[[0, 0, 0]])
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
-    shader = SoftPhongShader(cameras=cameras, lights=lights)
+    shader = SoftPhongShader(
+        cameras=cameras, lights=lights, blend_params=blend_params)
     renderer = MeshRenderer(
         rasterizer=rasterizer, shader=shader).to(device)
 
@@ -581,7 +586,8 @@ def project_standardized(mesh_data: AnyMesh,
                          centering=True,
                          manual_dmax : float = None,
                          show_axis=False,
-                         print_dmax=False) -> np.ndarray:
+                         print_dmax=False,
+                         device='cuda') -> np.ndarray:
     """
     Given any mesh(es), this function renders the zoom-in images.
     The meshes are proecessed to be in [-0.5, 0.5]^3 space,
@@ -654,4 +660,5 @@ def project_standardized(mesh_data: AnyMesh,
     return perspective_projection_by_camera(
         _mesh_data,
         camera,
-        method=method)
+        method=method,
+        device=device)

@@ -45,7 +45,8 @@ class SimpleMesh(Trimesh):
                  verts: Union[np.ndarray, torch.Tensor],
                  faces: Union[np.ndarray, torch.Tensor],
                  process=False,
-                 tex_color='light_blue'):
+                 tex_color='light_blue',
+                 device='cuda'):
         """
         Args:
             verts: (V, 3) float32
@@ -56,6 +57,7 @@ class SimpleMesh(Trimesh):
         """
         verts = numpize(_drop_dim0(verts))
         faces = numpize(_drop_dim0(faces))
+        self.device = device
 
         if isinstance(tex_color, str) and tex_color in _COLORS:
             self.tex_color = _COLORS[tex_color]
@@ -81,7 +83,7 @@ class SimpleMesh(Trimesh):
 
     @property
     def synced_mesh(self):
-        device = 'cuda'
+        device = self.device
         verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
         faces = torch.as_tensor(self.faces, device=device)
         verts_rgb = torch.ones_like(verts) * \
