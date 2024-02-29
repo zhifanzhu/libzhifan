@@ -2,12 +2,10 @@ from typing import Union
 
 import numpy as np
 import torch
-
-from trimesh import Trimesh
-from pytorch3d.structures import Meshes
-from pytorch3d.renderer import TexturesVertex
-
 from libzhifan.numeric import numpize
+from pytorch3d.renderer import TexturesVertex
+from pytorch3d.structures import Meshes
+from trimesh import Trimesh
 
 _COLORS = dict(
     light_blue=(0.65, 0.74, 0.86),
@@ -84,8 +82,11 @@ class SimpleMesh(Trimesh):
         device = 'cuda'
         verts = torch.as_tensor(self.vertices, device=device, dtype=torch.float32)
         faces = torch.as_tensor(self.faces, device=device)
-        verts_rgb = torch.ones_like(verts) * \
-            torch.as_tensor(self.tex_color[:3], device=device)
+        # verts_rgb = torch.ones_like(verts) * \
+        #     torch.as_tensor(self.tex_color[:3], device=device)
+        verts_rgb = torch.as_tensor(
+            self.visual.vertex_colors[:, :3],
+            dtype=torch.float32, device=device) / 255.
         textures = TexturesVertex(verts_features=verts_rgb[None].to(device))
         return Meshes(
             verts=[verts],

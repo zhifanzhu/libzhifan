@@ -1,24 +1,20 @@
-from typing import Union, Tuple, List
-import numpy as np
-import trimesh
-import torch
+from typing import List, Tuple, Union
 
-from pytorch3d.renderer import (
-    PerspectiveCameras, RasterizationSettings, PointLights,
-    MeshRasterizer, SoftPhongShader, MeshRenderer,
-    TexturesVertex
-)
-from pytorch3d.renderer import BlendParams, SoftSilhouetteShader
-from pytorch3d.structures import Meshes
-from pytorch3d.structures import join_meshes_as_scene
+import numpy as np
+import torch
+import trimesh
+from libzhifan.numeric import numpize
+from pytorch3d.renderer import (BlendParams, MeshRasterizer, MeshRenderer,
+                                PerspectiveCameras, PointLights,
+                                RasterizationSettings, SoftPhongShader,
+                                SoftSilhouetteShader, TexturesVertex)
+from pytorch3d.structures import Meshes, join_meshes_as_scene
 
 from . import coor_utils
-from .mesh import SimpleMesh
-from .visualize_2d import draw_dots_image
 from .camera_manager import CameraManager
 from .instance_id_rendering import InstanceIDRenderer
-
-from libzhifan.numeric import numpize
+from .mesh import SimpleMesh
+from .visualize_2d import draw_dots_image
 
 try:
     import neural_renderer as nr
@@ -150,7 +146,8 @@ def perspective_projection(mesh_data: AnyMesh,
                                ),
                            image=None,
                            img_h=None,
-                           img_w=None) -> np.ndarray:
+                           img_w=None,
+                           **kwargs) -> np.ndarray:
     """ Project verts/mesh by Perspective camera.
 
     Args:
@@ -192,7 +189,7 @@ def perspective_projection(mesh_data: AnyMesh,
             image, dtype=torch.float32) / 255.
         img = pytorch3d_perspective_projection(
             mesh_data=mesh_data, cam_f=cam_f, cam_p=cam_p,
-            **method, image=image
+            **method, image=image, **kwargs
         )
         return img
     elif method_name == 'pytorch3d_silhouette':
@@ -225,7 +222,8 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
                                          name='pytorch3d',
                                          in_ndc=False,
                                      ),
-                                     image=None) -> np.ndarray:
+                                     image=None,
+                                     **kwargs) -> np.ndarray:
     """
     Similar to perspective_projection() but with CameraManager as argument.
     """
@@ -239,6 +237,7 @@ def perspective_projection_by_camera(mesh_data: AnyMesh,
         image=image,
         img_h=int(img_h),
         img_w=int(img_w),
+        **kwargs,
     )
     return img
 
@@ -291,7 +290,7 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         cam_f: Tuple, (2,)
         cam_p: Tuple, (2,)
         R: (3, 3)
-        T: (3,)
+        pT: (3,)
 
         coor_sys: str, one of {'pytorch3d', 'neural_renderer'/'nr'}
             Set the input coordinate sysem.
@@ -333,11 +332,14 @@ def pytorch3d_perspective_projection(mesh_data: AnyMesh,
         image_size=[image_size],
     )
 
+    blend_params = kwargs.pop('blend_params', BlendParams())
     raster_settings = RasterizationSettings(
-        image_size=image_size, blur_radius=0, faces_per_pixel=1)
+        image_size=image_size, blur_radius=0, faces_per_pixel=1,
+        bin_size=kwargs.get('bin_size', None))
     lights = PointLights(location=[[0, 0, 0]])
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
-    shader = SoftPhongShader(cameras=cameras, lights=lights)
+    shader = SoftPhongShader(
+        cameras=cameras, lights=lights, blend_params=blend_params)
     renderer = MeshRenderer(
         rasterizer=rasterizer, shader=shader).to(device)
 
@@ -581,7 +583,8 @@ def project_standardized(mesh_data: AnyMesh,
                          centering=True,
                          manual_dmax : float = None,
                          show_axis=False,
-                         print_dmax=False) -> np.ndarray:
+                         print_dmax=False,
+                         **kwargs) -> np.ndarray:
     """
     Given any mesh(es), this function renders the zoom-in images.
     The meshes are proecessed to be in [-0.5, 0.5]^3 space,
@@ -592,6 +595,7 @@ def project_standardized(mesh_data: AnyMesh,
         manual_dmax: set dmax manually
         print_dmax: This helps determine manual_dmax
         centering: if True, look at (xc, yc, zc); otherwise, look at (0, 0, 0)
+        **kwargs: other kwargs passed to projection function
 
     Returns:
         (H, W, 3)
@@ -654,4 +658,5 @@ def project_standardized(mesh_data: AnyMesh,
     return perspective_projection_by_camera(
         _mesh_data,
         camera,
-        method=method)
+        method=method,
+        **kwargs)
