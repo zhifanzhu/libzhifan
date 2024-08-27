@@ -1,6 +1,8 @@
 from typing import Union
 
 import numpy as np
+import PIL
+import PIL.ImageDraw as ImageDraw  # needed for getrgb()
 import torch
 from libzhifan.numeric import numpize
 from pytorch3d.renderer import TexturesVertex
@@ -13,6 +15,7 @@ _COLORS = dict(
     grey=(0.8, 0.8, 0.8),
     red=(1.0, 0, 0),
     green=(0, 1.0, 0),
+    purple=(0.63, 0.12, 0.94),
 )
 
 
@@ -59,6 +62,8 @@ class SimpleMesh(Trimesh):
 
         if isinstance(tex_color, str) and tex_color in _COLORS:
             self.tex_color = _COLORS[tex_color]
+        # if isinstance(tex_color, str):
+        #     self.tex_color = PIL.ImageColor.getrgb(tex_color)  # tuple
         elif len(tex_color) >= 3 and (0.0 <= tex_color[0] <= 1.0):
             self.tex_color = tex_color
         else:

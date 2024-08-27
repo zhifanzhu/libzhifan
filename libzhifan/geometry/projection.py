@@ -55,7 +55,7 @@ a. pytorch3d / pytorch3d-NDC
         <----
         X
 
-b. OpenGL, naive_implementation:
+b. OpenGL, Open3D, naive_implementation:
 
             ^ Y              Y ^
             |                  |  / Z
@@ -73,7 +73,7 @@ b. OpenGL, naive_implementation:
             |
             v Y
 
-c. OpenCV, Open3D, neural_renderer:
+c. OpenCV, neural_renderer:
 
              / Z
             /

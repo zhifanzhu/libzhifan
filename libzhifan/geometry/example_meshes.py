@@ -1,4 +1,5 @@
 import numpy as np
+import trimesh
 
 from .mesh import SimpleMesh
 
@@ -146,3 +147,13 @@ def canonical_pivots(
         [0, 0, depth],   # Z-axis
     ])
     return pts
+
+
+def create_camera_pose(c2w: np.ndarray,
+                       origin_size=0.01,
+                       axis_radius=0.004,
+                       axis_length=0.4):
+    """ Create an camera frame in world-coord """
+    axis = trimesh.creation.axis(
+        origin_size=origin_size, axis_radius=axis_radius, axis_length=axis_length)
+    return axis.copy().apply_transform(c2w)
