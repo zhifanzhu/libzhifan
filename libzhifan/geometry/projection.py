@@ -510,8 +510,12 @@ def pth3d_instance_perspective_projection(meshes: List[Meshes],
         image_size=[image_size],
     )
     blur_radius = kwargs.pop('blur_radius', 1e-7)
-    renderer = InstanceIDRenderer(cameras=cameras, image_size=image_size, blur_radius=blur_radius).to(device)
-    rendered = renderer(meshes)
+    max_faces_per_bin = kwargs.pop('max_faces_per_bin', None)
+    renderer = InstanceIDRenderer(
+        cameras=cameras, image_size=image_size, 
+        blur_radius=blur_radius, max_faces_per_bin=max_faces_per_bin).to(device)
+    mesh_to_id = kwargs.pop('mesh_to_id', None)  # default assignment is [1, 2, 3, ...]
+    rendered = renderer(meshes, mesh_to_id=mesh_to_id)
 
     out = numpize(rendered)
     return out
