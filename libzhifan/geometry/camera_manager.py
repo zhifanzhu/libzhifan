@@ -4,6 +4,7 @@ Ref on crop and resize:
 https://github.com/BerkeleyAutomation/perception/blob/0.0.1/perception/camera_intrinsics.py#L176-#L236
 """
 
+import collections
 import numpy as np
 import torch
 
@@ -11,10 +12,10 @@ import torch
 
 [[Fx, 0, Cx],
  [0, Fy, Cy],
- [0,  0,  1]] 
- 
- = 
- 
+ [0,  0,  1]]
+
+ =
+
 [[f*sx, 0, ox],
  [0, f*sy, oy],
  [0,    0,  1]]
@@ -84,7 +85,7 @@ class CameraManager:
 
     def unpack(self):
         return self.fx, self.fy, self.cx, self.cy, self.img_h, self.img_w
-    
+
     def repeat(self, bsize: int, device='cpu'):
         fx = torch.ones([bsize]) * self.fx
         fy = torch.ones([bsize]) * self.fy
@@ -95,7 +96,7 @@ class CameraManager:
         return BatchCameraManager(
             fx=fx, fy=fy, cx=cx, cy=cy, img_h=img_h, img_w=img_w,
             in_ndc=False, device=device)
-        
+
     @staticmethod
     def from_nr(mat, image_size: int):
         """
@@ -252,11 +253,14 @@ class BatchCameraManager:
     def __repr__(self):
         return f"BatchCameraManager (H, W) = ({self.img_h}, {self.img_w})\n"\
             f"K (non-NDC) = \n {self.get_K()}"
-    
+
     def __len__(self) -> int:
         return self.bsize
 
-    def __getitem__(self, index: int) -> CameraManager:
+    def __getitem__(self, index) -> CameraManager:
+        if isinstance(index, collections.Sequence):
+            return self._get_many(index)
+
         if index >= self.bsize:
             raise IndexError(f"Trying to access index {index} "
                              f"out of {self.bsize} cameras.")
@@ -265,6 +269,14 @@ class BatchCameraManager:
             cx=self.cx[index].item(), cy=self.cy[index].item(),
             img_h=self.img_h[index].item(), img_w=self.img_w[index].item(),
             in_ndc=False)
+    
+    def _get_many(self, indices):
+        batch_cam_manager = BatchCameraManager(
+            fx=self.fx[indices], fy=self.fy[indices],
+            cx=self.cx[indices], cy=self.cy[indices],
+            img_h=self.img_h[indices], img_w=self.img_w[indices],
+            in_ndc=False, device=self.device) 
+        return batch_cam_manager
 
     def get_K(self):
         """ Returns: (B, 3, 3) """
