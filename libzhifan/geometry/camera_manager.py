@@ -4,7 +4,10 @@ Ref on crop and resize:
 https://github.com/BerkeleyAutomation/perception/blob/0.0.1/perception/camera_intrinsics.py#L176-#L236
 """
 
-import collections
+try:
+    import collections.abc as collections
+except ImportError:
+    import collections
 import numpy as np
 import torch
 
@@ -269,13 +272,13 @@ class BatchCameraManager:
             cx=self.cx[index].item(), cy=self.cy[index].item(),
             img_h=self.img_h[index].item(), img_w=self.img_w[index].item(),
             in_ndc=False)
-    
+
     def _get_many(self, indices):
         batch_cam_manager = BatchCameraManager(
             fx=self.fx[indices], fy=self.fy[indices],
             cx=self.cx[indices], cy=self.cy[indices],
             img_h=self.img_h[indices], img_w=self.img_w[indices],
-            in_ndc=False, device=self.device) 
+            in_ndc=False, device=self.device)
         return batch_cam_manager
 
     def get_K(self):
