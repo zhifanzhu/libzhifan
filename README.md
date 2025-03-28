@@ -10,6 +10,7 @@ modules:
 - *epylab*: matplotlib extension
 - *geometry*: 3D geometries, camera projections, mesh visualization. Requires pytorch3d
 - *numeric*: Utilities for numeric libraries (numpy, pytorch)
+- *cvtools*: video / frame header and subtitles. Mask overlay.
 
 # Install
 

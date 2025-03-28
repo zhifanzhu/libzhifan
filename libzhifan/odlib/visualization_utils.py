@@ -307,19 +307,7 @@ def draw_gt_image_array_plain(image,
     return img
 
 
-def rescale_img_pixel(img):
-    """ Rescale pixel value from [-1, 1] float to [0, 255] uint8.
-
-    Args:
-        img: ndarray, range from [-1, 1] float
-
-    Return:
-        ndarray, [0, 255] uint8
-    """
-    return np.uint8((img + 1) * 255. / 2)
-
-
-def rescale_with_pad(img, width=500, ar=1.4):
+def resize_with_pad(img, width=500, ar=1.4):
     """ Rescale and pad image to fix shape.
         ar = w / h
 
@@ -349,27 +337,3 @@ def rescale_with_pad(img, width=500, ar=1.4):
     yy = (height - ht) // 2
     result[yy:yy+ht, xx:xx+wd] = img
     return result
-
-
-def heatmap_on_image(heatmap, image, weight_hm=0.5, weight_img=None):
-    """ Draw heatmap on image.
-        output pixel = weight_hm * hm + weight_img * image
-
-    Args:
-        heatmap: [H, W] np.float32 image, value range [-1, 1],
-            the value of heatmap will be scaled to [0, 255] and convert to uint8
-        image: [H, W, 3] np.uint8.
-        weight_hm: float
-        weight_img: None or float, if None, weight_img = 1 - weight_hm
-
-    Return:
-        [H, W, 3]
-    """
-    img_h, img_w, _ = image.shape
-    hm_resize = cv2.resize(heatmap, (img_w, img_h))
-    hm_resize = rescale_img_pixel(hm_resize)
-    hm_color = cv2.applyColorMap(hm_resize, cv2.COLORMAP_JET)
-    if weight_img is None:
-        weight_img = 1 - weight_hm
-    heatmapped_img = cv2.addWeighted(hm_color, weight_hm, image, weight_img, 0)
-    return heatmapped_img
