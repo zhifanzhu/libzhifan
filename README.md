@@ -1,3 +1,7 @@
+# Update 2025-Nov-8
+
+This repo is deprecated, use [libvista](https://github.com/zhifanzhu/libvista) instead.
+
 # LibZhifan
 
 # Doc
