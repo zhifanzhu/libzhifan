@@ -479,9 +479,9 @@ def torch3d_apply_Ry(geom: Union[Meshes, Pointclouds, torch.Tensor],
     theta = degree / 180 * np.pi
     c, s = np.cos(theta), np.sin(theta)
     Ry_mat = torch.as_tensor([[
-        [c, 0, -s, 0],
+        [c, 0, s, 0],
         [0, 1, 0, 0],
-        [s, 0, c, 0],
+        [-s, 0, c, 0],
         [0, 0, 0, 1]]], dtype=torch.float32, device=geom.device)
     return torch3d_apply_transform_matrix(
         geom, Ry_mat, convert_trans_col_to_row=True)
