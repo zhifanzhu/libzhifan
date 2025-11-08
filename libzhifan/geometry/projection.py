@@ -646,10 +646,9 @@ def project_standardized(mesh_data: AnyMesh,
     elif direction == '-z':
         _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, 180)
     elif direction == '+x':
-        # I guarantee you it's +90, not -90
-        _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, +90)
-    elif direction == '-x':
         _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, -90)
+    elif direction == '-x':
+        _mesh_data = coor_utils.torch3d_apply_Ry(_mesh_data, +90)
     elif direction == '+y':
         _mesh_data = coor_utils.torch3d_apply_Rx(_mesh_data, +90)
     elif direction == '-y':
